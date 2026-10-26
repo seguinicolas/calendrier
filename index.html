@@ -10,8 +10,8 @@
   html,body{height:100%;margin:0;font-family:system-ui,sans-serif}
   #map{position:absolute;inset:0 0 90px 0}
   #bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;gap:8px;padding:8px;box-sizing:border-box;background:#222}
-  #bar button{flex:1;font-size:18px;font-weight:700;border:0;border-radius:12px;color:#fff}
-  #don{background:#2e9e4f}#abs{background:#e08a00}
+  #bar button{flex:1;font-size:16px;font-weight:700;border:0;border-radius:12px;color:#fff}
+  #don{background:#2e9e4f}#abs{background:#e08a00}#liste{background:#1a73e8}
   #total{position:absolute;top:8px;left:8px;z-index:1000;background:#fff;padding:6px 12px;border-radius:10px;font-weight:700;box-shadow:0 1px 4px #0006}
   #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
@@ -25,9 +25,10 @@
 <div id="bar">
   <button id="don">💶 Don reçu</button>
   <button id="abs">🚪 Absent</button>
+  <button id="liste">📋 Absents</button>
 </div>
 <div id="modal"><div class="box">
-  <b>Don reçu</b>
+  <b id="titre">Don reçu</b>
   <input id="nom" type="text" placeholder="Nom">
   <input id="adresse" type="text" placeholder="Adresse / lieu-dit">
   <input id="montant" type="number" inputmode="decimal" placeholder="€">
@@ -35,6 +36,10 @@
   <input id="note" type="text" placeholder="Note (facultatif)">
   <div class="row"><button id="ok" style="background:#2e9e4f;color:#fff">Valider</button><button id="cancel">Annuler</button></div>
 </div></div>
+<div id="panel" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
+  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><b>Personnes absentes</b><button id="pclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
+  <div id="plist"></div>
+</div>
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
@@ -42,6 +47,7 @@ const map = L.map('map').setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
+const items = [];
 navigator.geolocation.watchPosition(p=>{
   pos = {lat:p.coords.latitude, lng:p.coords.longitude};
   if(!me) me = L.circleMarker(pos,{radius:9,color:'#fff',fillColor:'#1a73e8',fillOpacity:1,weight:3}).addTo(map);
@@ -51,8 +57,9 @@ navigator.geolocation.watchPosition(p=>{
 
 function addMarker(r){
   const ok = r.type==='don';
-  L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1,fillColor:ok?'#2e9e4f':'#e08a00'})
+  const mk=L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1,fillColor:ok?'#2e9e4f':'#e08a00'})
    .addTo(map).bindPopup(`<b>${esc(r.nom)||'—'}</b><br>${esc(r.adresse)}<br>${ok?r.montant+' € ('+esc(r.mode)+')':'Absent'}<br>${esc(r.note)}`);
+  items.push({r,mk});majBtn();
   if(ok){total+=Number(r.montant)||0;document.getElementById('total').textContent='Total : '+total.toFixed(2).replace('.00','')+' €'}
 }
 
@@ -86,26 +93,43 @@ async function adresse(p){
 }
 
 let cur=null;
-$('abs').onclick=async()=>{
+function ouvrir(type){
   if(!needPos())return;
-  const p={...pos};
-  save({type:'absent',lat:p.lat,lng:p.lng,nom:'',adresse:await adresse(p),montant:0,mode:'',note:''});
-};
-$('don').onclick=()=>{
-  if(!needPos())return;
-  cur={...pos};
+  cur={...pos,type};
   ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
+  const don=type==='don';
+  $('titre').textContent=don?'Don reçu':'Personne absente';
+  $('montant').style.display=$('mode').style.display=don?'':'none';
   $('modal').style.display='flex';
   $('nom').focus();
   adresse(cur).then(a=>{if(!$('adresse').value)$('adresse').value=a});
-};
+}
+$('don').onclick=()=>ouvrir('don');
+$('abs').onclick=()=>ouvrir('absent');
 $('cancel').onclick=()=>$('modal').style.display='none';
 $('ok').onclick=()=>{
-  const m=parseFloat($('montant').value.replace(',','.'));
-  if(!(m>=0)){alert('Montant ?');return}
-  save({type:'don',lat:cur.lat,lng:cur.lng,nom:$('nom').value,adresse:$('adresse').value,montant:m,mode:$('mode').value,note:$('note').value});
+  const don=cur.type==='don';
+  const m=don?parseFloat($('montant').value.replace(',','.')):0;
+  if(don&&!(m>=0)){alert('Montant ?');return}
+  save({type:cur.type,lat:cur.lat,lng:cur.lng,nom:$('nom').value,adresse:$('adresse').value,montant:m,mode:don?$('mode').value:'',note:$('note').value});
   $('modal').style.display='none';
 };
+
+// Liste des absents
+function majBtn(){$('liste').textContent='📋 Absents ('+items.filter(i=>i.r.type==='absent').length+')'}
+$('liste').onclick=()=>{
+  const l=items.filter(i=>i.r.type==='absent');
+  $('plist').innerHTML=l.length?'':'<p style="padding:16px">Aucun absent.</p>';
+  l.forEach(({r,mk})=>{
+    const d=document.createElement('div');
+    d.style.cssText='padding:12px 14px;border-bottom:1px solid #ddd';
+    d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b><br>${esc(r.adresse)||'adresse inconnue'}`+(r.note?`<br><i>${esc(r.note)}</i>`:'');
+    d.onclick=()=>{$('panel').style.display='none';map.setView([r.lat,r.lng],18);mk.openPopup()};
+    $('plist').appendChild(d);
+  });
+  $('panel').style.display='block';
+};
+$('pclose').onclick=()=>$('panel').style.display='none';
 
 // Charger l'historique
 fetch(API).then(r=>r.json()).then(rows=>rows.forEach(addMarker)).catch(()=>{});
