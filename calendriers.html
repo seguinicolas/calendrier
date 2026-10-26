@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendriers 🚒</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html,body{height:100%;margin:0;font-family:system-ui,sans-serif}
+  #map{position:absolute;inset:0 0 90px 0}
+  #bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;gap:8px;padding:8px;box-sizing:border-box;background:#222}
+  #bar button{flex:1;font-size:18px;font-weight:700;border:0;border-radius:12px;color:#fff}
+  #don{background:#2e9e4f}#abs{background:#e08a00}
+  #total{position:absolute;top:8px;left:8px;z-index:1000;background:#fff;padding:6px 12px;border-radius:10px;font-weight:700;box-shadow:0 1px 4px #0006}
+  #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
+  #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+  #modal input,#modal select{font-size:20px;padding:8px}
+  #modal .row{display:flex;gap:8px}#modal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="total">Total : 0 €</div>
+<div id="bar">
+  <button id="don">💶 Don reçu</button>
+  <button id="abs">🚪 Absent</button>
+</div>
+<div id="modal"><div class="box">
+  <b>Montant donné</b>
+  <input id="montant" type="number" inputmode="decimal" placeholder="€">
+  <select id="mode"><option>Espèces</option><option>Chèque</option><option>CB</option></select>
+  <input id="note" type="text" placeholder="Note (facultatif)">
+  <div class="row"><button id="ok" style="background:#2e9e4f;color:#fff">Valider</button><button id="cancel">Annuler</button></div>
+</div></div>
+
+<script>
+const API = 'COLLE_ICI_URL_APPS_SCRIPT';
+const map = L.map('map').setView([44.19, 2.34], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+
+let pos = null, me = null, first = true, total = 0;
+navigator.geolocation.watchPosition(p=>{
+  pos = {lat:p.coords.latitude, lng:p.coords.longitude};
+  if(!me) me = L.circleMarker(pos,{radius:9,color:'#fff',fillColor:'#1a73e8',fillOpacity:1,weight:3}).addTo(map);
+  else me.setLatLng(pos);
+  if(first){map.setView(pos,17);first=false}
+},()=>alert('Active la localisation'),{enableHighAccuracy:true});
+
+function addMarker(r){
+  const ok = r.type==='don';
+  L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1,fillColor:ok?'#2e9e4f':'#e08a00'})
+   .addTo(map).bindPopup(ok?`${r.montant} € (${r.mode})<br>${r.note||''}`:'Absent');
+  if(ok){total+=Number(r.montant)||0;document.getElementById('total').textContent='Total : '+total.toFixed(2).replace('.00','')+' €'}
+}
+
+// File d'attente (réseau faible sur le terrain)
+const getQ=()=>JSON.parse(localStorage.getItem('q')||'[]');
+const setQ=q=>localStorage.setItem('q',JSON.stringify(q));
+async function flush(){
+  let q=getQ();
+  while(q.length){
+    try{await fetch(API,{method:'POST',mode:'no-cors',body:JSON.stringify(q[0])});q.shift();setQ(q)}
+    catch(e){return}
+  }
+}
+function save(r){r.date=new Date().toISOString();setQ([...getQ(),r]);addMarker(r);flush()}
+
+function needPos(){if(!pos){alert('Position GPS pas encore trouvée');return false}return true}
+
+document.getElementById('abs').onclick=()=>{
+  if(!needPos())return;
+  save({type:'absent',lat:pos.lat,lng:pos.lng,montant:0,mode:'',note:''});
+};
+document.getElementById('don').onclick=()=>{
+  if(!needPos())return;
+  document.getElementById('montant').value='';document.getElementById('note').value='';
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('montant').focus();
+};
+document.getElementById('cancel').onclick=()=>document.getElementById('modal').style.display='none';
+document.getElementById('ok').onclick=()=>{
+  const m=parseFloat(document.getElementById('montant').value.replace(',','.'));
+  if(!(m>=0)){alert('Montant ?');return}
+  save({type:'don',lat:pos.lat,lng:pos.lng,montant:m,mode:document.getElementById('mode').value,note:document.getElementById('note').value});
+  document.getElementById('modal').style.display='none';
+};
+
+// Charger l'historique
+fetch(API).then(r=>r.json()).then(rows=>rows.forEach(addMarker)).catch(()=>{});
+flush();
+window.addEventListener('online',flush);
+</script>
+</body>
+</html>
