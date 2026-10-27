@@ -17,6 +17,7 @@
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
   #modal input,#modal select{font-size:20px;padding:8px}
   #modal .row{display:flex;gap:8px}#modal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
+.eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
 </style>
 </head>
 <body>
@@ -45,6 +46,22 @@
 const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
 const map = L.map('map').setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+
+// Couches des secteurs (fichiers GeoJSON à côté de index.html)
+const COUL=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6','#bcf60c','#008080','#9a6324','#800000','#808000','#000075'];
+function secteurs(url){
+  const g=L.layerGroup().addTo(map);
+  fetch(url+'?v='+Date.now()).then(r=>r.json()).then(d=>{
+    const feats=(d.features||[]).filter(f=>f.geometry&&f.geometry.coordinates&&f.geometry.coordinates.length&&f.properties&&f.properties.equipe!=null);
+    L.geoJSON({type:'FeatureCollection',features:feats},{
+      interactive:false,
+      style:f=>{const c=COUL[(f.properties.equipe-1)%COUL.length];return{color:c,weight:2,fillColor:c,fillOpacity:.25}},
+      onEachFeature:(f,l)=>l.bindTooltip('Éq. '+f.properties.equipe,{permanent:true,direction:'center',className:'eq'})
+    }).addTo(g);
+  }).catch(()=>{});
+  return g;
+}
+L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson'),'Secteurs ville':secteurs('secteurs_ville.geojson')},{collapsed:true}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
 const items = [];
