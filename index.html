@@ -17,12 +17,17 @@
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
   #modal input,#modal select{font-size:20px;padding:8px}
   #modal .row{display:flex;gap:8px}#modal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
+#filtres{position:absolute;bottom:98px;left:8px;z-index:1000;display:flex;gap:6px}
+#filtres button{border:2px solid;border-radius:16px;padding:5px 10px;font-size:13px;font-weight:700;background:#fff;color:#333}
+#filtres [data-t=don]{border-color:#2e9e4f}#filtres [data-t=absent]{border-color:#e08a00}#filtres [data-t=inoccupe]{border-color:#8e24aa}
+#filtres .on[data-t=don]{background:#2e9e4f;color:#fff}#filtres .on[data-t=absent]{background:#e08a00;color:#fff}#filtres .on[data-t=inoccupe]{background:#8e24aa;color:#fff}
 .eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div id="total">Total : 0 €</div>
+<div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button></div>
 <div id="bar">
   <button id="don">💶 Don reçu</button>
   <button id="abs">🚪 Absent</button>
@@ -76,8 +81,8 @@ navigator.geolocation.watchPosition(p=>{
 const pts={};
 function addMarker(r){
   const ok=r.type==='don';
-  const col=ok?'#2e9e4f':'#e08a00';
-  const st=(ok?r.montant+' € ('+r.mode+')':'Absent')+(r.note?' — '+r.note:'');
+  const col={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa'}[r.type]||'#e08a00';
+  const st=(ok?r.montant+' € ('+r.mode+')':r.type==='inoccupe'?'Inoccupé':'Absent')+(r.note?' — '+r.note:'');
   let mk=r.ida&&pts[r.ida];
   if(mk){
     mk.setStyle({fillColor:col,radius:8});
@@ -87,7 +92,7 @@ function addMarker(r){
       .bindPopup(`<b>${esc(r.nom)||'—'}</b><br>${esc(r.adresse)}<br>${esc(st)}`);
   }
   if(r.ida){const i=items.findIndex(x=>x.r.ida===r.ida);if(i>=0)items.splice(i,1)}
-  items.push({r,mk});majBtn();
+  items.push({r,mk});majBtn();applyFilters();
   if(ok){total+=Number(r.montant)||0;document.getElementById('total').textContent='Total : '+total.toFixed(2).replace('.00','')+' €'}
 }
 
@@ -123,6 +128,7 @@ async function adresse(p){
 let cur=null;
 function ouvrir(type,a){
   if(!a&&!needPos())return;
+  if(type==='inoccupe'&&a){save({type:'inoccupe',ida:a.id,lat:a.lat,lng:a.lng,nom:'',adresse:a.adresse,montant:0,mode:'',note:''});return}
   cur=a?{lat:a.lat,lng:a.lng,type,ida:a.id}:{...pos,type};
   ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
   const don=type==='don';
@@ -160,11 +166,25 @@ $('liste').onclick=()=>{
 $('pclose').onclick=()=>$('panel').style.display='none';
 
 // Charger l'historique
+// Filtres d'affichage
+const filtre={don:true,absent:true,inoccupe:true};
+function applyFilters(){
+  items.forEach(({r,mk})=>{
+    const show=filtre[r.type]!==false;
+    if(mk.a){show?gAdr.addLayer(mk):gAdr.removeLayer(mk)}
+    else{show?mk.addTo(map):mk.remove()}
+  });
+}
+document.querySelectorAll('#filtres button').forEach(b=>{
+  b.classList.add('on');
+  b.onclick=()=>{const t=b.dataset.t;filtre[t]=!filtre[t];b.classList.toggle('on',filtre[t]);applyFilters()};
+});
+
 // Points d'adresse (cliquables)
 function popupAdr(a){
   const d=document.createElement('div');
   d.innerHTML=`<b>${esc(a.adresse)}</b><br>${a.statut?esc(a.statut)+'<br>':''}`;
-  [['💶 Don','don'],['🚪 Absent','absent']].forEach(([t,ty])=>{
+  [['💶 Don','don'],['🚪 Absent','absent'],['🏚️ Inoccupé','inoccupe']].forEach(([t,ty])=>{
     const b=document.createElement('button');
     b.textContent=t;b.style.cssText='margin:6px 4px 0 0;padding:8px 10px;font-size:15px';
     b.onclick=()=>{map.closePopup();ouvrir(ty,a)};
