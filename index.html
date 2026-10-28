@@ -44,7 +44,7 @@
 
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
-const map = L.map('map').setView([44.19, 2.34], 15);
+const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 
 // Couches des secteurs (fichiers GeoJSON à côté de index.html)
@@ -61,7 +61,8 @@ function secteurs(url){
   }).catch(()=>{});
   return g;
 }
-L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson'),'Secteurs ville':secteurs('secteurs_ville.geojson')},{collapsed:true}).addTo(map);
+const gAdr=L.layerGroup().addTo(map);
+L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson'),'Secteurs ville':secteurs('secteurs_ville.geojson'),'Adresses':gAdr},{collapsed:true}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
 const items = [];
@@ -72,10 +73,20 @@ navigator.geolocation.watchPosition(p=>{
   if(first){map.setView(pos,17);first=false}
 },()=>alert('Active la localisation'),{enableHighAccuracy:true});
 
+const pts={};
 function addMarker(r){
-  const ok = r.type==='don';
-  const mk=L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1,fillColor:ok?'#2e9e4f':'#e08a00'})
-   .addTo(map).bindPopup(`<b>${esc(r.nom)||'—'}</b><br>${esc(r.adresse)}<br>${ok?r.montant+' € ('+esc(r.mode)+')':'Absent'}<br>${esc(r.note)}`);
+  const ok=r.type==='don';
+  const col=ok?'#2e9e4f':'#e08a00';
+  const st=(ok?r.montant+' € ('+r.mode+')':'Absent')+(r.note?' — '+r.note:'');
+  let mk=r.ida&&pts[r.ida];
+  if(mk){
+    mk.setStyle({fillColor:col,radius:8});
+    mk.a.statut=(r.nom?r.nom+' — ':'')+st;
+  }else{
+    mk=L.circleMarker([r.lat,r.lng],{radius:8,color:'#fff',weight:2,fillOpacity:1,fillColor:col}).addTo(map)
+      .bindPopup(`<b>${esc(r.nom)||'—'}</b><br>${esc(r.adresse)}<br>${esc(st)}`);
+  }
+  if(r.ida){const i=items.findIndex(x=>x.r.ida===r.ida);if(i>=0)items.splice(i,1)}
   items.push({r,mk});majBtn();
   if(ok){total+=Number(r.montant)||0;document.getElementById('total').textContent='Total : '+total.toFixed(2).replace('.00','')+' €'}
 }
@@ -110,16 +121,16 @@ async function adresse(p){
 }
 
 let cur=null;
-function ouvrir(type){
-  if(!needPos())return;
-  cur={...pos,type};
+function ouvrir(type,a){
+  if(!a&&!needPos())return;
+  cur=a?{lat:a.lat,lng:a.lng,type,ida:a.id}:{...pos,type};
   ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
   const don=type==='don';
   $('titre').textContent=don?'Don reçu':'Personne absente';
   $('montant').style.display=$('mode').style.display=don?'':'none';
   $('modal').style.display='flex';
   $('nom').focus();
-  adresse(cur).then(a=>{if(!$('adresse').value)$('adresse').value=a});
+  if(a)$('adresse').value=a.adresse;else adresse(cur).then(x=>{if(!$('adresse').value)$('adresse').value=x});
 }
 $('don').onclick=()=>ouvrir('don');
 $('abs').onclick=()=>ouvrir('absent');
@@ -128,7 +139,7 @@ $('ok').onclick=()=>{
   const don=cur.type==='don';
   const m=don?parseFloat($('montant').value.replace(',','.')):0;
   if(don&&!(m>=0)){alert('Montant ?');return}
-  save({type:cur.type,lat:cur.lat,lng:cur.lng,nom:$('nom').value,adresse:$('adresse').value,montant:m,mode:don?$('mode').value:'',note:$('note').value});
+  save({type:cur.type,ida:cur.ida||'',lat:cur.lat,lng:cur.lng,nom:$('nom').value,adresse:$('adresse').value,montant:m,mode:don?$('mode').value:'',note:$('note').value});
   $('modal').style.display='none';
 };
 
@@ -149,7 +160,29 @@ $('liste').onclick=()=>{
 $('pclose').onclick=()=>$('panel').style.display='none';
 
 // Charger l'historique
-fetch(API).then(r=>r.json()).then(rows=>rows.forEach(addMarker)).catch(()=>{});
+// Points d'adresse (cliquables)
+function popupAdr(a){
+  const d=document.createElement('div');
+  d.innerHTML=`<b>${esc(a.adresse)}</b><br>${a.statut?esc(a.statut)+'<br>':''}`;
+  [['💶 Don','don'],['🚪 Absent','absent']].forEach(([t,ty])=>{
+    const b=document.createElement('button');
+    b.textContent=t;b.style.cssText='margin:6px 4px 0 0;padding:8px 10px;font-size:15px';
+    b.onclick=()=>{map.closePopup();ouvrir(ty,a)};
+    d.appendChild(b);
+  });
+  return d;
+}
+function chargerAdresses(){
+  return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
+    d.features.forEach(f=>{
+      const [lng,lat]=f.geometry.coordinates;
+      const a={id:f.properties.id,adresse:f.properties.adr,lat,lng,statut:''};
+      const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
+      mk.a=a;mk.bindPopup(l=>popupAdr(l.a));pts[a.id]=mk;
+    });
+  }).catch(()=>{});
+}
+Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>rows.forEach(addMarker));
 flush();
 window.addEventListener('online',flush);
 </script>
