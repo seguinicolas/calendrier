@@ -12,7 +12,7 @@
   #bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;gap:8px;padding:8px;box-sizing:border-box;background:#222}
   #bar button{flex:1;font-size:16px;font-weight:700;border:0;border-radius:12px;color:#fff}
   #don{background:#2e9e4f}#abs{background:#e08a00}#liste{background:#1a73e8}
-  #total{position:absolute;top:8px;left:8px;z-index:1000;background:#fff;padding:6px 12px;border-radius:10px;font-weight:700;box-shadow:0 1px 4px #0006}
+  #eqsel{position:absolute;top:8px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
   #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
   #modal input,#modal select{font-size:20px;padding:8px}
@@ -26,7 +26,7 @@
 </head>
 <body>
 <div id="map"></div>
-<div id="total">Total : 0 €</div>
+<select id="eqsel"><option value="">Toutes les équipes</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select>
 <div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button></div>
 <div id="bar">
   <button id="don">💶 Don reçu</button>
@@ -43,7 +43,7 @@
   <div class="row"><button id="ok" style="background:#2e9e4f;color:#fff">Valider</button><button id="cancel">Annuler</button></div>
 </div></div>
 <div id="panel" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
-  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><b>Personnes absentes</b><button id="pclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
+  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><b id="ptitre">Personnes absentes</b><button id="pclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
   <div id="plist"></div>
 </div>
 
@@ -58,10 +58,25 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 
 // Couches des secteurs (fichiers GeoJSON à côté de index.html)
 const COUL=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6','#bcf60c','#008080','#9a6324','#800000','#808000','#000075'];
-function secteurs(url){
+// Secteur (équipe) d'un point : croisement avec les polygones
+const SECT=[];
+function dans(pt,ring){let c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+function secteurDe(lng,lat){
+  const pt=[lng,lat];
+  for(const z of SECT)for(const P of z.polys){
+    const b=P.b;if(lng<b[0]||lng>b[2]||lat<b[1]||lat>b[3])continue;
+    if(dans(pt,P.rings[0])&&!P.rings.slice(1).some(h=>dans(pt,h)))return z;
+  }
+  return null;
+}
+function eqPos(lat,lng){const z=secteurDe(lng,lat);return z?{equipe:z.equipe,zone:z.zone}:{equipe:'',zone:''}}
+function equipe(a){if(a.eq===undefined&&SECT.length){const z=secteurDe(a.lng,a.lat);a.eq=z?z.equipe:'';a.zone=z?z.zone:''}return a}
+function ligneEq(a){equipe(a);return a.eq===undefined?'':(a.eq!==''?`Équipe ${esc(a.eq)} · ${esc(a.zone)}`:'Secteur non défini')}
+function secteurs(url,zone){
   const g=L.layerGroup().addTo(map);
   fetch(url+'?v='+Date.now()).then(r=>r.json()).then(d=>{
     const feats=(d.features||[]).filter(f=>f.geometry&&f.geometry.coordinates&&f.geometry.coordinates.length&&f.properties&&f.properties.equipe!=null);
+    feats.forEach(f=>{const g=f.geometry,P=g.type==='MultiPolygon'?g.coordinates:[g.coordinates];SECT.push({zone,equipe:f.properties.equipe,polys:P.map(rings=>{const xs=rings[0].map(q=>q[0]),ys=rings[0].map(q=>q[1]);return{rings,b:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]}})})});
     L.geoJSON({type:'FeatureCollection',features:feats},{
       interactive:false,
       style:f=>{const c=COUL[(f.properties.equipe-1)%COUL.length];return{color:c,weight:2,fillColor:c,fillOpacity:.25}},
@@ -71,7 +86,7 @@ function secteurs(url){
   return g;
 }
 const gAdr=L.layerGroup().addTo(map);
-L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson'),'Secteurs ville':secteurs('secteurs_ville.geojson'),'Adresses':gAdr},{collapsed:true}).addTo(map);
+L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdr},{collapsed:true}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
 const items = [];
@@ -105,8 +120,6 @@ function addMarker(r){
   mk.a.statut=(mk.a.nom?mk.a.nom+' — ':'')+st;
   const i=items.findIndex(x=>key(x.r)===k);if(i>=0)items.splice(i,1);
   items.push({r,mk});majBtn();applyFilters();
-  total=items.filter(x=>x.r.type==='don').reduce((t,x)=>t+(Number(x.r.montant)||0),0);
-  document.getElementById('total').textContent='Total : '+total.toFixed(2).replace('.00','')+' €';
 }
 
 // File d'attente (réseau faible sur le terrain)
@@ -119,7 +132,7 @@ async function flush(){
     catch(e){return}
   }
 }
-function save(r){r.date=new Date().toISOString();setQ([...getQ(),r]);addMarker(r);flush()}
+function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));setQ([...getQ(),r]);addMarker(r);flush()}
 
 function needPos(){if(!pos){alert('Position GPS pas encore trouvée');return false}return true}
 
@@ -163,63 +176,17 @@ $('ok').onclick=()=>{
 };
 
 // Liste des absents
-function majBtn(){$('liste').textContent='📋 Absents ('+items.filter(i=>i.r.type==='absent').length+')'}
+const absents=()=>{const e=$('eqsel').value;return items.filter(i=>i.r.type==='absent'&&(!e||String(equipe(i.mk.a).eq)===e))};
+function majBtn(){$('liste').textContent='📋 Absents ('+absents().length+')'}
+$('eqsel').onchange=()=>{try{localStorage.setItem('eq',$('eqsel').value)}catch(e){}majBtn()};
+try{$('eqsel').value=localStorage.getItem('eq')||''}catch(e){}
 $('liste').onclick=()=>{
-  const l=items.filter(i=>i.r.type==='absent');
+  const l=absents();
+  $('ptitre').textContent='Personnes absentes'+($('eqsel').value?' — Équipe '+$('eqsel').value:'');
   $('plist').innerHTML=l.length?'':'<p style="padding:16px">Aucun absent.</p>';
   l.forEach(({r,mk})=>{
     const d=document.createElement('div');
     d.style.cssText='padding:12px 14px;border-bottom:1px solid #ddd';
-    d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b><br>${esc(r.adresse)||'adresse inconnue'}`+(r.note?`<br><i>${esc(r.note)}</i>`:'');
+    d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b><br>${esc(r.adresse)||'adresse inconnue'}`+(ligneEq(mk.a)?`<br>${ligneEq(mk.a)}`:'')+(r.note?`<br><i>${esc(r.note)}</i>`:'');
     d.onclick=()=>{$('panel').style.display='none';map.setView([r.lat,r.lng],18);showAdr(mk)};
-    $('plist').appendChild(d);
-  });
-  $('panel').style.display='block';
-};
-$('pclose').onclick=()=>$('panel').style.display='none';
-
-// Charger l'historique
-// Filtres d'affichage
-const filtre={don:true,absent:true,inoccupe:true};
-function applyFilters(){
-  items.forEach(({r,mk})=>{
-    const show=filtre[r.type]!==false;
-    if(mk.gps){show?mk.addTo(map):mk.remove()}
-    else{show?gAdr.addLayer(mk):gAdr.removeLayer(mk)}
-  });
-}
-document.querySelectorAll('#filtres button').forEach(b=>{
-  b.classList.add('on');
-  b.onclick=()=>{const t=b.dataset.t;filtre[t]=!filtre[t];b.classList.toggle('on',filtre[t]);applyFilters()};
-});
-
-// Points d'adresse (cliquables)
-function popupAdr(a,gps){
-  const d=document.createElement('div');
-  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${a.statut?esc(a.statut)+'<br>':''}`;
-  [['💶 Don','don'],['🚪 Absent','absent'],['🏚️ Inoccupé','inoccupe']].filter(x=>!gps||x[1]!=='inoccupe').forEach(([t,ty])=>{
-    const b=document.createElement('button');
-    b.textContent=t;b.style.cssText='margin:6px 4px 0 0;padding:8px 10px;font-size:15px';
-    b.onclick=()=>{map.closePopup();ouvrir(ty,a)};
-    d.appendChild(b);
-  });
-  return d;
-}
-function showAdr(mk){L.popup().setLatLng(mk.getLatLng()).setContent(popupAdr(mk.a,mk.gps)).openOn(map)}
-gAdr.on('click',e=>showAdr(e.layer));
-function chargerAdresses(){
-  return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
-    d.features.forEach(f=>{
-      const [lng,lat]=f.geometry.coordinates;
-      const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
-      const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
-      mk.a=a;pts[a.id]=mk;
-    });
-  }).catch(()=>{});
-}
-Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>(Array.isArray(rows)?rows:[]).forEach(r=>{try{addMarker(r)}catch(e){}}));
-flush();
-window.addEventListener('online',flush);
-</script>
-</body>
-</html>
+ 
