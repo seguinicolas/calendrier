@@ -135,12 +135,18 @@ function addMarker(r){
 // File d'attente (réseau faible sur le terrain)
 const getQ=()=>JSON.parse(localStorage.getItem('q')||'[]');
 const setQ=q=>localStorage.setItem('q',JSON.stringify(q));
+let envoi=false;
 async function flush(){
-  let q=getQ();
-  while(q.length){
-    try{await fetch(API,{method:'POST',mode:'no-cors',body:JSON.stringify(q[0])});q.shift();setQ(q)}
-    catch(e){return}
-  }
+  if(envoi)return;envoi=true;let ok=true;
+  try{
+    while(getQ().length){
+      const r=getQ()[0];
+      await fetch(API,{method:'POST',mode:'no-cors',body:JSON.stringify(r)});
+      setQ(getQ().slice(1));
+    }
+  }catch(e){ok=false}
+  envoi=false;
+  if(ok&&getQ().length)flush();
 }
 function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));setQ([...getQ(),r]);addMarker(r);flush()}
 
@@ -271,7 +277,20 @@ function chargerAdresses(){
     });
   }).catch(()=>{});
 }
-Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>(Array.isArray(rows)?rows:[]).forEach(r=>{try{addMarker(r)}catch(e){}}));
+// Chargement initial puis actualisation automatique (1 min) des saisies des autres
+let vus=0,encours=false;
+const traiter=rows=>rows.forEach(r=>{try{addMarker(r)}catch(e){}});
+Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.length;traiter(rows)});
+function actualiser(){
+  if(encours||document.hidden||!navigator.onLine)return;
+  encours=true;flush();
+  fetch(API+'?depuis='+vus).then(r=>r.json()).then(d=>{
+    if(!d||typeof d.n!=='number')return;
+    traiter(d.rows||[]);traiter(getQ());vus=d.n;
+  }).catch(()=>{}).finally(()=>{encours=false});
+}
+setInterval(actualiser,60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualiser()});
 flush();
 window.addEventListener('online',flush);
 </script>
