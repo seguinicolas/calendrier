@@ -63,6 +63,7 @@ function erreur(m){const b=document.createElement('div');b.style.cssText='positi
 window.onerror=(m,u,l)=>erreur(m+' (ligne '+l+')');
 window.addEventListener('unhandledrejection',e=>erreur(String(e.reason)));
 const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
+L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
 const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 
@@ -95,7 +96,7 @@ function secteurs(url,zone){
   }).catch(()=>{});
   return g;
 }
-const gAdr=L.layerGroup().addTo(map);
+const gAdr=L.featureGroup().addTo(map);
 L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdr},{collapsed:true}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
