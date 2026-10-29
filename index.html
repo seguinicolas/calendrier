@@ -21,12 +21,22 @@
 #filtres button{border:2px solid;border-radius:16px;padding:5px 10px;font-size:13px;font-weight:700;background:#fff;color:#333}
 #filtres [data-t=don]{border-color:#2e9e4f}#filtres [data-t=absent]{border-color:#e08a00}#filtres [data-t=inoccupe]{border-color:#8e24aa}
 #filtres .on[data-t=don]{background:#2e9e4f;color:#fff}#filtres .on[data-t=absent]{background:#e08a00;color:#fff}#filtres .on[data-t=inoccupe]{background:#8e24aa;color:#fff}
+#recapbtn{position:absolute;top:50px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
+#rtab table{width:100%;border-collapse:collapse;font-size:16px}
+#rtab th,#rtab td{padding:12px 8px;border-bottom:1px solid #ddd;text-align:right}
+#rtab th:first-child,#rtab td:first-child{text-align:left}
+#rtab tr:last-child td{font-weight:700}
 .eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <select id="eqsel"><option value="">Toutes les équipes</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select>
+<button id="recapbtn">📊 Récap</button>
+<div id="recap" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
+  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><b id="rtitre">Récapitulatif</b><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
+  <div id="rtab" style="padding:12px"></div>
+</div>
 <div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button></div>
 <div id="bar">
   <button id="don">💶 Don reçu</button>
@@ -196,6 +206,33 @@ $('liste').onclick=()=>{
 $('pclose').onclick=()=>$('panel').style.display='none';
 
 // Charger l'historique
+// Récapitulatif ville / campagne
+const fmt=n=>n.toFixed(2).replace('.00','').replace('.',',')+' €';
+function recap(){
+  const e=$('eqsel').value;
+  const R={ville:{real:0,rest:0,somme:0},campagne:{real:0,rest:0,somme:0}};
+  const st={};items.forEach(i=>{st[key(i.r)]=i.r.type});
+  const zone=a=>{equipe(a);return a.zone&&(!e||String(a.eq)===e)?R[a.zone]:null};
+  Object.values(pts).forEach(mk=>{
+    const z=zone(mk.a);if(!z)return;
+    const t=st[mk.a.id];
+    if(t==='don')z.real++;
+    else if(!mk.gps&&t!=='inoccupe')z.rest++;
+  });
+  items.forEach(({r,mk})=>{if(r.type!=='don')return;const z=zone(mk.a);if(z)z.somme+=Number(r.montant)||0});
+  const V=R.ville,C=R.campagne;
+  const ligne=(t,a,b,f)=>`<tr><td>${t}</td><td>${f(a)}</td><td>${f(b)}</td><td>${f(a+b)}</td></tr>`;
+  $('rtitre').textContent='Récapitulatif'+(e?' — Équipe '+e:' — Toutes les équipes');
+  $('rtab').innerHTML='<table><tr><th></th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
+    +ligne('Calendriers réalisés',V.real,C.real,String)
+    +ligne('Calendriers restants',V.rest,C.rest,String)
+    +ligne('Somme perçue',V.somme,C.somme,fmt)
+    +'</table><p style="font-size:13px;color:#555">Restants = adresses du secteur sans don ni inoccupé (absents inclus). Les adresses hors secteur ne sont pas comptées.</p>';
+  $('recap').style.display='block';
+}
+$('recapbtn').onclick=recap;
+$('rclose').onclick=()=>$('recap').style.display='none';
+
 // Filtres d'affichage
 const filtre={don:true,absent:true,inoccupe:true};
 function applyFilters(){
