@@ -189,4 +189,54 @@ $('liste').onclick=()=>{
     d.style.cssText='padding:12px 14px;border-bottom:1px solid #ddd';
     d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b><br>${esc(r.adresse)||'adresse inconnue'}`+(ligneEq(mk.a)?`<br>${ligneEq(mk.a)}`:'')+(r.note?`<br><i>${esc(r.note)}</i>`:'');
     d.onclick=()=>{$('panel').style.display='none';map.setView([r.lat,r.lng],18);showAdr(mk)};
- 
+    $('plist').appendChild(d);
+  });
+  $('panel').style.display='block';
+};
+$('pclose').onclick=()=>$('panel').style.display='none';
+
+// Charger l'historique
+// Filtres d'affichage
+const filtre={don:true,absent:true,inoccupe:true};
+function applyFilters(){
+  items.forEach(({r,mk})=>{
+    const show=filtre[r.type]!==false;
+    if(mk.gps){show?mk.addTo(map):mk.remove()}
+    else{show?gAdr.addLayer(mk):gAdr.removeLayer(mk)}
+  });
+}
+document.querySelectorAll('#filtres button').forEach(b=>{
+  b.classList.add('on');
+  b.onclick=()=>{const t=b.dataset.t;filtre[t]=!filtre[t];b.classList.toggle('on',filtre[t]);applyFilters()};
+});
+
+// Points d'adresse (cliquables)
+function popupAdr(a,gps){
+  const d=document.createElement('div');
+  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}${a.statut?esc(a.statut)+'<br>':''}`;
+  [['💶 Don','don'],['🚪 Absent','absent'],['🏚️ Inoccupé','inoccupe']].filter(x=>!gps||x[1]!=='inoccupe').forEach(([t,ty])=>{
+    const b=document.createElement('button');
+    b.textContent=t;b.style.cssText='margin:6px 4px 0 0;padding:8px 10px;font-size:15px';
+    b.onclick=()=>{map.closePopup();ouvrir(ty,a)};
+    d.appendChild(b);
+  });
+  return d;
+}
+function showAdr(mk){L.popup().setLatLng(mk.getLatLng()).setContent(popupAdr(mk.a,mk.gps)).openOn(map)}
+gAdr.on('click',e=>showAdr(e.layer));
+function chargerAdresses(){
+  return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
+    d.features.forEach(f=>{
+      const [lng,lat]=f.geometry.coordinates;
+      const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
+      const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
+      mk.a=a;pts[a.id]=mk;
+    });
+  }).catch(()=>{});
+}
+Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>(Array.isArray(rows)?rows:[]).forEach(r=>{try{addMarker(r)}catch(e){}}));
+flush();
+window.addEventListener('online',flush);
+</script>
+</body>
+</html>
