@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Calendriers 🚒</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <style>
   html,body{height:100%;margin:0;font-family:system-ui,sans-serif}
   #map{position:absolute;inset:0 0 90px 0}
@@ -38,7 +38,7 @@
   <input id="nom" type="text" placeholder="Nom">
   <input id="adresse" type="text" placeholder="Adresse / lieu-dit">
   <input id="montant" type="number" inputmode="decimal" placeholder="€">
-  <select id="mode"><option>Espèces</option><option>Chèque</option><option>CB</option></select>
+  <select id="mode"><option>Espèces</option><option>Chèque</option></select>
   <input id="note" type="text" placeholder="Note (facultatif)">
   <div class="row"><button id="ok" style="background:#2e9e4f;color:#fff">Valider</button><button id="cancel">Annuler</button></div>
 </div></div>
@@ -48,6 +48,10 @@
 </div>
 
 <script>
+// Affiche toute erreur en rouge en haut de l'écran (aide au diagnostic)
+function erreur(m){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#c00;color:#fff;padding:6px;font-size:12px';b.textContent='Erreur : '+m;document.body.appendChild(b)}
+window.onerror=(m,u,l)=>erreur(m+' (ligne '+l+')');
+window.addEventListener('unhandledrejection',e=>erreur(String(e.reason)));
 const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
 const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
@@ -79,21 +83,30 @@ navigator.geolocation.watchPosition(p=>{
 },()=>alert('Active la localisation'),{enableHighAccuracy:true});
 
 const pts={};
+const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa'};
+const key=r=>r.ida||('p'+r.lat+','+r.lng);
+const carre=col=>L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid #fff;box-shadow:0 0 3px #000"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
 function addMarker(r){
+  if(r.lat===''||r.lng===''||r.lat==null||r.lng==null)return;
   const ok=r.type==='don';
-  const col={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa'}[r.type]||'#e08a00';
+  const col=COLS[r.type]||'#e08a00';
   const st=(ok?r.montant+' € ('+r.mode+')':r.type==='inoccupe'?'Inoccupé':'Absent')+(r.note?' — '+r.note:'');
-  let mk=r.ida&&pts[r.ida];
-  if(mk){
-    mk.setStyle({fillColor:col,radius:8});
-    mk.a.statut=(r.nom?r.nom+' — ':'')+st;
-  }else{
-    mk=L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid #fff;box-shadow:0 0 3px #000"></div>`,iconSize:[18,18],iconAnchor:[9,9]})}).addTo(map)
-      .bindPopup(`<b>${esc(r.nom)||'—'}</b><br>${esc(r.adresse)}<br>${esc(st)}`);
-  }
-  if(r.ida){const i=items.findIndex(x=>x.r.ida===r.ida);if(i>=0)items.splice(i,1)}
+  const k=key(r);
+  let mk=pts[k];
+  if(!mk){
+    mk=L.marker([r.lat,r.lng],{icon:carre(col)}).addTo(map);
+    mk.gps=true;mk.a={id:k,adresse:'',nom:'',lat:r.lat,lng:r.lng,statut:''};
+    mk.on('click',()=>showAdr(mk));
+    pts[k]=mk;
+  }else if(mk.gps)mk.setIcon(carre(col));
+  else mk.setStyle({fillColor:col,radius:8});
+  if(r.nom)mk.a.nom=r.nom;
+  if(mk.gps&&r.adresse)mk.a.adresse=r.adresse;
+  mk.a.statut=(mk.a.nom?mk.a.nom+' — ':'')+st;
+  const i=items.findIndex(x=>key(x.r)===k);if(i>=0)items.splice(i,1);
   items.push({r,mk});majBtn();applyFilters();
-  if(ok){total+=Number(r.montant)||0;document.getElementById('total').textContent='Total : '+total.toFixed(2).replace('.00','')+' €'}
+  total=items.filter(x=>x.r.type==='don').reduce((t,x)=>t+(Number(x.r.montant)||0),0);
+  document.getElementById('total').textContent='Total : '+total.toFixed(2).replace('.00','')+' €';
 }
 
 // File d'attente (réseau faible sur le terrain)
@@ -128,7 +141,7 @@ async function adresse(p){
 let cur=null;
 function ouvrir(type,a){
   if(!a&&!needPos())return;
-  if(type==='inoccupe'&&a){save({type:'inoccupe',ida:a.id,lat:a.lat,lng:a.lng,nom:'',adresse:a.adresse,montant:0,mode:'',note:''});return}
+  if(type==='inoccupe'&&a){save({type:'inoccupe',ida:a.id,lat:a.lat,lng:a.lng,nom:a.nom||'',adresse:a.adresse,montant:0,mode:'',note:''});return}
   cur=a?{lat:a.lat,lng:a.lng,type,ida:a.id}:{...pos,type};
   ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
   const don=type==='don';
@@ -136,7 +149,7 @@ function ouvrir(type,a){
   $('montant').style.display=$('mode').style.display=don?'':'none';
   $('modal').style.display='flex';
   $('nom').focus();
-  if(a)$('adresse').value=a.adresse;else adresse(cur).then(x=>{if(!$('adresse').value)$('adresse').value=x});
+  if(a){$('adresse').value=a.adresse||'';$('nom').value=a.nom||''}else adresse(cur).then(x=>{if(!$('adresse').value)$('adresse').value=x});
 }
 $('don').onclick=()=>ouvrir('don');
 $('abs').onclick=()=>ouvrir('absent');
@@ -158,7 +171,7 @@ $('liste').onclick=()=>{
     const d=document.createElement('div');
     d.style.cssText='padding:12px 14px;border-bottom:1px solid #ddd';
     d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b><br>${esc(r.adresse)||'adresse inconnue'}`+(r.note?`<br><i>${esc(r.note)}</i>`:'');
-    d.onclick=()=>{$('panel').style.display='none';map.setView([r.lat,r.lng],18);mk.openPopup()};
+    d.onclick=()=>{$('panel').style.display='none';map.setView([r.lat,r.lng],18);showAdr(mk)};
     $('plist').appendChild(d);
   });
   $('panel').style.display='block';
@@ -171,8 +184,8 @@ const filtre={don:true,absent:true,inoccupe:true};
 function applyFilters(){
   items.forEach(({r,mk})=>{
     const show=filtre[r.type]!==false;
-    if(mk.a){show?gAdr.addLayer(mk):gAdr.removeLayer(mk)}
-    else{show?mk.addTo(map):mk.remove()}
+    if(mk.gps){show?mk.addTo(map):mk.remove()}
+    else{show?gAdr.addLayer(mk):gAdr.removeLayer(mk)}
   });
 }
 document.querySelectorAll('#filtres button').forEach(b=>{
@@ -181,10 +194,10 @@ document.querySelectorAll('#filtres button').forEach(b=>{
 });
 
 // Points d'adresse (cliquables)
-function popupAdr(a){
+function popupAdr(a,gps){
   const d=document.createElement('div');
-  d.innerHTML=`<b>${esc(a.adresse)}</b><br>${a.statut?esc(a.statut)+'<br>':''}`;
-  [['💶 Don','don'],['🚪 Absent','absent'],['🏚️ Inoccupé','inoccupe']].forEach(([t,ty])=>{
+  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${a.statut?esc(a.statut)+'<br>':''}`;
+  [['💶 Don','don'],['🚪 Absent','absent'],['🏚️ Inoccupé','inoccupe']].filter(x=>!gps||x[1]!=='inoccupe').forEach(([t,ty])=>{
     const b=document.createElement('button');
     b.textContent=t;b.style.cssText='margin:6px 4px 0 0;padding:8px 10px;font-size:15px';
     b.onclick=()=>{map.closePopup();ouvrir(ty,a)};
@@ -192,17 +205,19 @@ function popupAdr(a){
   });
   return d;
 }
+function showAdr(mk){L.popup().setLatLng(mk.getLatLng()).setContent(popupAdr(mk.a,mk.gps)).openOn(map)}
+gAdr.on('click',e=>showAdr(e.layer));
 function chargerAdresses(){
   return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
     d.features.forEach(f=>{
       const [lng,lat]=f.geometry.coordinates;
-      const a={id:f.properties.id,adresse:f.properties.adr,lat,lng,statut:''};
+      const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
       const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
-      mk.a=a;mk.bindPopup(l=>popupAdr(l.a));pts[a.id]=mk;
+      mk.a=a;pts[a.id]=mk;
     });
   }).catch(()=>{});
 }
-Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>rows.forEach(addMarker));
+Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>(Array.isArray(rows)?rows:[]).forEach(r=>{try{addMarker(r)}catch(e){}}));
 flush();
 window.addEventListener('online',flush);
 </script>
