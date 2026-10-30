@@ -266,7 +266,7 @@ map.on('click',e=>{
 });
 
 // Affichage selon l'échelle : points et carrés visibles à partir du zoom ZMIN
-const ZMIN=10;
+const ZMIN=15;
 const zoomOk=()=>map.getZoom()>=ZMIN;
 function majAdr(){(map.hasLayer(gAdrCtl)&&zoomOk())?map.addLayer(gAdr):map.removeLayer(gAdr)}
 function majZoom(){$('zoomhint').style.display=zoomOk()?'none':'block';majAdr();applyFilters()}
