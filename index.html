@@ -26,12 +26,18 @@
 #rtab th,#rtab td{padding:12px 8px;border-bottom:1px solid #ddd;text-align:right}
 #rtab th:first-child,#rtab td:first-child{text-align:left}
 #rtab tr:last-child td{font-weight:700}
+#manuel{position:absolute;top:62px;right:10px;z-index:999;background:#fff;border:2px solid #0004;border-radius:6px;padding:6px 8px;font-size:14px;font-weight:700}
+#manuel.on{background:#1a73e8;color:#fff}
+#aide{display:none;position:absolute;top:100px;left:50%;transform:translateX(-50%);z-index:1000;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:0 1px 4px #0006;white-space:nowrap}
+#zoomhint{display:none;position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:1000;background:#333c;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;white-space:nowrap}
 .eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <select id="eqsel"><option value="">Toutes les équipes</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select>
+<button id="manuel">➕ Point</button><div id="zoomhint">Zoomez pour afficher les points</div>
+<div id="aide">Touchez la carte pour placer le point</div>
 <button id="recapbtn">📊 Récap</button>
 <div id="recap" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
   <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><b id="rtitre">Récapitulatif</b><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
@@ -96,8 +102,9 @@ function secteurs(url,zone){
   }).catch(()=>{});
   return g;
 }
-const gAdr=L.featureGroup().addTo(map);
-L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdr},{collapsed:true}).addTo(map);
+const gAdr=L.featureGroup();
+const gAdrCtl=L.layerGroup().addTo(map); // case « Adresses » du menu des couches
+L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdrCtl},{collapsed:true}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
 const items = [];
@@ -109,28 +116,28 @@ navigator.geolocation.watchPosition(p=>{
 },()=>alert('Active la localisation'),{enableHighAccuracy:true});
 
 const pts={};
+const touched=new Set();
 const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa'};
 const key=r=>r.ida||('p'+r.lat+','+r.lng);
 const carre=col=>L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid #fff;box-shadow:0 0 3px #000"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
+// Couleur d'un point selon ses logements : orange si un absent, sinon vert si un don, sinon violet
+const couleurMk=mk=>{const t=Object.values(mk.L).map(r=>r.type);return t.includes('absent')?COLS.absent:t.includes('don')?COLS.don:t.length?COLS.inoccupe:'#777'};
 function addMarker(r){
   if(r.lat===''||r.lng===''||r.lat==null||r.lng==null)return;
-  const ok=r.type==='don';
-  const col=COLS[r.type]||'#e08a00';
-  const st=(ok?r.montant+' € ('+r.mode+')':r.type==='inoccupe'?'Inoccupé':'Absent')+(r.note?' — '+r.note:'');
-  const k=key(r);
-  let mk=pts[k];
+  const k=key(r),base=k.split('#')[0],n=k.includes('#')?(+k.split('#')[1]||1):1;
+  let mk=pts[base];
   if(!mk){
-    mk=L.marker([r.lat,r.lng],{icon:carre(col)}).addTo(map);
-    mk.gps=true;mk.a={id:k,adresse:'',nom:'',lat:r.lat,lng:r.lng,statut:''};
+    mk=L.marker([r.lat,r.lng],{icon:carre(COLS[r.type]||COLS.absent)}).addTo(map);
+    mk.gps=true;mk.L={};mk.a={id:base,adresse:'',nom:'',lat:r.lat,lng:r.lng,statut:''};
     mk.on('click',()=>showAdr(mk));
-    pts[k]=mk;
-  }else if(mk.gps)mk.setIcon(carre(col));
-  else mk.setStyle({fillColor:col,radius:8});
-  if(r.nom)mk.a.nom=r.nom;
+    pts[base]=mk;
+  }
+  mk.L[n]=r;
+  const col=couleurMk(mk);
+  if(mk.gps)mk.setIcon(carre(col));else mk.setStyle({fillColor:col,radius:8});
   if(mk.gps&&r.adresse)mk.a.adresse=r.adresse;
-  mk.a.statut=(mk.a.nom?mk.a.nom+' — ':'')+st;
   const i=items.findIndex(x=>key(x.r)===k);if(i>=0)items.splice(i,1);
-  items.push({r,mk});majBtn();applyFilters();
+  items.push({r,mk,n});touched.add(mk);majBtn();applyFilters();
 }
 
 // File d'attente (réseau faible sur le terrain)
@@ -169,17 +176,22 @@ async function adresse(p){
 }
 
 let cur=null;
-function ouvrir(type,a){
+function ouvrir(type,a,n,rec){
   if(!a&&!needPos())return;
-  if(type==='inoccupe'&&a){save({type:'inoccupe',ida:a.id,lat:a.lat,lng:a.lng,nom:a.nom||'',adresse:a.adresse,montant:0,mode:'',note:''});return}
-  cur=a?{lat:a.lat,lng:a.lng,type,ida:a.id}:{...pos,type};
+  n=n||1;
+  const ida=a?(n>1?a.id+'#'+n:a.id):'';
+  if(type==='inoccupe'&&a){save({type:'inoccupe',ida,lat:a.lat,lng:a.lng,nom:rec?rec.nom||'':'',adresse:a.adresse,montant:0,mode:'',note:rec?rec.note||'':''});return}
+  cur=a?{lat:a.lat,lng:a.lng,type,ida}:{...pos,type};
   ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
   const don=type==='don';
-  $('titre').textContent=don?'Don reçu':'Personne absente';
+  $('titre').textContent=(don?'Don reçu':'Personne absente')+(n>1?' — Logement '+n:'');
   $('montant').style.display=$('mode').style.display=don?'':'none';
   $('modal').style.display='flex';
   $('nom').focus();
-  if(a){$('adresse').value=a.adresse||'';$('nom').value=a.nom||''}else adresse(cur).then(x=>{if(!$('adresse').value)$('adresse').value=x});
+  if(a&&!a.manuel){
+    $('adresse').value=a.adresse||'';
+    if(rec){$('nom').value=rec.nom||'';$('note').value=rec.note||'';if(don&&rec.type==='don'){$('montant').value=rec.montant;$('mode').value=rec.mode||'Espèces'}}
+  }else adresse(cur).then(x=>{if(!$('adresse').value)$('adresse').value=x});
 }
 $('don').onclick=()=>ouvrir('don');
 $('abs').onclick=()=>ouvrir('absent');
@@ -201,10 +213,10 @@ $('liste').onclick=()=>{
   const l=absents();
   $('ptitre').textContent='Personnes absentes'+($('eqsel').value?' — Équipe '+$('eqsel').value:'');
   $('plist').innerHTML=l.length?'':'<p style="padding:16px">Aucun absent.</p>';
-  l.forEach(({r,mk})=>{
+  l.forEach(({r,mk,n})=>{
     const d=document.createElement('div');
     d.style.cssText='padding:12px 14px;border-bottom:1px solid #ddd';
-    d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b><br>${esc(r.adresse)||'adresse inconnue'}`+(ligneEq(mk.a)?`<br>${ligneEq(mk.a)}`:'')+(r.note?`<br><i>${esc(r.note)}</i>`:'');
+    d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b>${n>1?' · Logement '+n:''}<br>${esc(r.adresse)||'adresse inconnue'}`+(ligneEq(mk.a)?`<br>${ligneEq(mk.a)}`:'')+(r.note?`<br><i>${esc(r.note)}</i>`:'');
     d.onclick=()=>{$('panel').style.display='none';map.setView([r.lat,r.lng],18);showAdr(mk)};
     $('plist').appendChild(d);
   });
@@ -218,15 +230,13 @@ const fmt=n=>n.toFixed(2).replace('.00','').replace('.',',')+' €';
 function recap(){
   const e=$('eqsel').value;
   const R={ville:{real:0,rest:0,somme:0},campagne:{real:0,rest:0,somme:0}};
-  const st={};items.forEach(i=>{st[key(i.r)]=i.r.type});
   const zone=a=>{equipe(a);return a.zone&&(!e||String(a.eq)===e)?R[a.zone]:null};
   Object.values(pts).forEach(mk=>{
     const z=zone(mk.a);if(!z)return;
-    const t=st[mk.a.id];
-    if(t==='don')z.real++;
-    else if(!mk.gps&&t!=='inoccupe')z.rest++;
+    const rs=Object.values(mk.L);
+    rs.forEach(r=>{if(r.type==='don'){z.real++;z.somme+=Number(r.montant)||0}});
+    if(!mk.gps){if(!rs.length)z.rest++;else z.rest+=rs.filter(r=>r.type==='absent').length}
   });
-  items.forEach(({r,mk})=>{if(r.type!=='don')return;const z=zone(mk.a);if(z)z.somme+=Number(r.montant)||0});
   const V=R.ville,C=R.campagne;
   const ligne=(t,a,b,f)=>`<tr><td>${t}</td><td>${f(a)}</td><td>${f(b)}</td><td>${f(a+b)}</td></tr>`;
   $('rtitre').textContent='Récapitulatif'+(e?' — Équipe '+e:' — Toutes les équipes');
@@ -234,20 +244,44 @@ function recap(){
     +ligne('Calendriers réalisés',V.real,C.real,String)
     +ligne('Calendriers restants',V.rest,C.rest,String)
     +ligne('Somme perçue',V.somme,C.somme,fmt)
-    +'</table><p style="font-size:13px;color:#555">Restants = adresses du secteur sans don ni inoccupé (absents inclus). Les adresses hors secteur ne sont pas comptées.</p>';
+    +'</table><p style="font-size:13px;color:#555">Réalisés = logements avec don. Restants = adresses sans saisie + logements absents. Les adresses hors secteur ne sont pas comptées.</p>';
   $('recap').style.display='block';
 }
 $('recapbtn').onclick=recap;
 $('rclose').onclick=()=>$('recap').style.display='none';
 
+// Point manuel (placé sur la carte sans être sur place)
+let placement=false;
+function stopPlacement(){placement=false;$('manuel').classList.remove('on');$('aide').style.display='none';map.getContainer().style.cursor=''}
+$('manuel').onclick=()=>{
+  if(placement){stopPlacement();return}
+  placement=true;$('manuel').classList.add('on');$('aide').style.display='block';
+  map.getContainer().style.cursor='crosshair';map.closePopup();
+};
+map.on('click',e=>{
+  if(!placement)return;
+  stopPlacement();
+  const a={id:'',adresse:'',nom:'',lat:e.latlng.lat,lng:e.latlng.lng,statut:'',manuel:true};
+  L.popup().setLatLng(e.latlng).setContent(popupAdr(a,true)).openOn(map);
+});
+
+// Affichage selon l'échelle : points et carrés visibles à partir du zoom ZMIN
+const ZMIN=15;
+const zoomOk=()=>map.getZoom()>=ZMIN;
+function majAdr(){(map.hasLayer(gAdrCtl)&&zoomOk())?map.addLayer(gAdr):map.removeLayer(gAdr)}
+function majZoom(){$('zoomhint').style.display=zoomOk()?'none':'block';majAdr();applyFilters()}
+map.on('zoomend',majZoom);
+gAdrCtl.on('add remove',majAdr);
+
 // Filtres d'affichage
 const filtre={don:true,absent:true,inoccupe:true};
 function applyFilters(){
-  items.forEach(({r,mk})=>{
-    const show=filtre[r.type]!==false;
-    if(mk.gps){show?mk.addTo(map):mk.remove()}
+  touched.forEach(mk=>{
+    const show=Object.values(mk.L).some(r=>filtre[r.type]!==false);
+    if(mk.gps){(show&&zoomOk())?mk.addTo(map):mk.remove()}
     else{show?gAdr.addLayer(mk):gAdr.removeLayer(mk)}
   });
+
 }
 document.querySelectorAll('#filtres button').forEach(b=>{
   b.classList.add('on');
@@ -257,7 +291,7 @@ document.querySelectorAll('#filtres button').forEach(b=>{
 // Points d'adresse (cliquables)
 function popupAdr(a,gps){
   const d=document.createElement('div');
-  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}${a.statut?esc(a.statut)+'<br>':''}`;
+  d.innerHTML=`<b>${esc(a.adresse)||(a.manuel?'Point placé à la main':'Position GPS')}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}${a.statut?esc(a.statut)+'<br>':''}`;
   [['💶 Don','don'],['🚪 Absent','absent'],['🏚️ Inoccupé','inoccupe']].filter(x=>!gps||x[1]!=='inoccupe').forEach(([t,ty])=>{
     const b=document.createElement('button');
     b.textContent=t;b.style.cssText='margin:6px 4px 0 0;padding:8px 10px;font-size:15px';
@@ -266,7 +300,44 @@ function popupAdr(a,gps){
   });
   return d;
 }
-function showAdr(mk){L.popup().setLatLng(mk.getLatLng()).setContent(popupAdr(mk.a,mk.gps)).openOn(map)}
+const LAB={don:'💶 Don',absent:'🚪 Absent',inoccupe:'🏚️ Inoccupé'},NOMS={don:'Don',absent:'Absent',inoccupe:'Inoccupé'};
+const statutTxt=r=>(r.type==='don'?r.montant+' € ('+r.mode+')':NOMS[r.type])+(r.note?' — '+r.note:'');
+function popupMk(mk,extra){
+  const a=mk.a;
+  const d=document.createElement('div');
+  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}`;
+  const nums=Object.keys(mk.L).map(Number);
+  if(extra&&!nums.includes(extra))nums.push(extra);
+  if(!nums.length)nums.push(1);
+  nums.sort((x,y)=>x-y);
+  nums.forEach(n=>{
+    const rec=mk.L[n],multi=nums.length>1;
+    const bloc=document.createElement('div');
+    bloc.style.cssText='margin-top:8px;padding-top:6px;'+(multi?'border-top:1px solid #ddd':'');
+    bloc.innerHTML=(multi?`<b>Logement ${n}</b>`:'')+(rec?`${multi?' — ':''}${esc(rec.nom)||'(sans nom)'}<br><small>${esc(statutTxt(rec))}</small><br>`:(multi?'<br>':''));
+    ['don','absent','inoccupe'].filter(t=>!mk.gps||t!=='inoccupe').forEach(t=>{
+      const act=rec&&rec.type===t,b=document.createElement('button');
+      b.textContent=LAB[t];
+      b.style.cssText=`margin:4px 4px 0 0;padding:8px 10px;font-size:15px;border:2px solid ${COLS[t]};border-radius:8px;background:${act?COLS[t]:'#fff'};color:${act?'#fff':'#333'}`;
+      b.onclick=()=>{
+        if(act&&t==='inoccupe')return;
+        if(rec&&!act&&!confirm('Modifier ce logement ?\n'+(rec.nom||'(sans nom)')+' : '+NOMS[rec.type]+' → '+NOMS[t]))return;
+        map.closePopup();ouvrir(t,a,n,rec);
+      };
+      bloc.appendChild(b);
+    });
+    d.appendChild(bloc);
+  });
+  if(Object.keys(mk.L).length&&!extra){
+    const b=document.createElement('button');
+    b.textContent='➕ Ajouter un logement';
+    b.style.cssText='margin-top:10px;padding:8px 10px;font-size:15px;width:100%;border:2px dashed #1a73e8;border-radius:8px;background:#fff;color:#1a73e8';
+    b.onclick=()=>showAdr(mk,Math.max(...Object.keys(mk.L).map(Number))+1);
+    d.appendChild(b);
+  }
+  return d;
+}
+function showAdr(mk,extra){if(placement)stopPlacement();L.popup({maxHeight:320}).setLatLng(mk.getLatLng()).setContent(popupMk(mk,extra)).openOn(map)}
 gAdr.on('click',e=>showAdr(e.layer));
 function chargerAdresses(){
   return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
@@ -274,7 +345,7 @@ function chargerAdresses(){
       const [lng,lat]=f.geometry.coordinates;
       const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
       const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
-      mk.a=a;pts[a.id]=mk;
+      mk.a=a;mk.L={};pts[a.id]=mk;
     });
   }).catch(()=>{});
 }
@@ -292,6 +363,7 @@ function actualiser(){
 }
 setInterval(actualiser,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualiser()});
+majZoom();
 flush();
 window.addEventListener('online',flush);
 </script>
