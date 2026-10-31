@@ -395,4 +395,16 @@ Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then
 function actualiser(){
   if(encours||document.hidden||!navigator.onLine)return;
   encours=true;flush();
-  fetch(API+'?depuis='+vus
+  fetch(API+'?depuis='+vus).then(r=>r.json()).then(d=>{
+    if(!d||typeof d.n!=='number')return;
+    traiter(d.rows||[]);traiter(getQ());vus=d.n;
+  }).catch(()=>{}).finally(()=>{encours=false});
+}
+setInterval(actualiser,60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualiser()});
+majZoom();
+flush();
+window.addEventListener('online',flush);
+</script>
+</body>
+</html>
