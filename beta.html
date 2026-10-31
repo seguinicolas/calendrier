@@ -26,6 +26,9 @@
 #rtab th,#rtab td{padding:12px 8px;border-bottom:1px solid #ddd;text-align:right}
 #rtab th:first-child,#rtab td:first-child{text-align:left}
 #rtab table.t1 tr:last-child td{font-weight:700}
+#rtab table.t2{font-size:13px}
+#rtab table.t2 th,#rtab table.t2 td{padding:8px 4px;text-align:center}
+#rtab table.t2 th:first-child,#rtab table.t2 td:first-child{text-align:center;font-weight:700}
 #rtab h4{margin:22px 0 6px;font-size:16px}
 #manuel{position:absolute;top:62px;right:10px;z-index:999;background:#fff;border:2px solid #0004;border-radius:6px;padding:6px 8px;font-size:14px;font-weight:700}
 #manuel.on{background:#1a73e8;color:#fff}
@@ -243,23 +246,31 @@ function rendreRecap(){
   const R={ville:{real:0,somme:0},campagne:{real:0,somme:0}};
   const zone=a=>{equipe(a);return a.zone&&(!e||String(a.eq)===e)?R[a.zone]:null};
   const J={}; // jour -> dons par zone (équipe choisie)
+  const T={};for(let t=1;t<=13;t++)T[t]={ville:0,campagne:0,vo:0,co:0}; // par tournée (toutes les tournées)
   Object.values(pts).forEach(mk=>{
     const z=zone(mk.a);if(!z)return;
     Object.values(mk.L).forEach(r=>{if(r.type==='don'){z.real++;z.somme+=Number(r.montant)||0}});
+    if(!e){const t=+mk.a.eq;if(T[t])Object.values(mk.L).forEach(r=>{if(r.type==='don')T[t][mk.a.zone]++})}
     if(e)Object.values(mk.D||{}).forEach(dt=>{const k=jourLocal(dt);if(!k)return;(J[k]=J[k]||{ville:0,campagne:0})[mk.a.zone]++});
   });
   const O={ville:0,campagne:0};
-  if(OBJ)OBJ.forEach(x=>{if(!e||String(x.t)===e){O.ville+=Number(x.ville)||0;O.campagne+=Number(x.campagne)||0}});
+  if(OBJ)OBJ.forEach(x=>{if(!e||String(x.t)===e){O.ville+=Number(x.ville)||0;O.campagne+=Number(x.campagne)||0}if(T[x.t]){T[x.t].vo=Number(x.ville)||0;T[x.t].co=Number(x.campagne)||0}});
   const V=R.ville,C=R.campagne;
   const ligne=(t,a,b,f)=>`<tr><td>${t}</td><td>${f(a)}</td><td>${f(b)}</td><td>${f(a+b)}</td></tr>`;
   const tiret='<td>—</td>';
-  const ecart=n=>n<0?`<b style="color:#2e9e4f">${String(n).replace('-','−')}</b>`:String(n);
+  const ecart=n=>n<0?`<b style="color:#d32f2f">${String(n).replace('-','−')}</b>`:n>0?`<b style="color:#2e9e4f">+${n}</b>`:'0';
   let h='<table class="t1"><tr><th></th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
     +(OBJ?ligne("Calendriers de l'an dernier",O.ville,O.campagne,String):'<tr><td>Calendriers de l\'an dernier</td>'+tiret+tiret+tiret+'</tr>')
     +ligne('Calendriers réalisés',V.real,C.real,String)
-    +(OBJ?ligne('Restants / écart',O.ville-V.real,O.campagne-C.real,ecart):'<tr><td>Restants / écart</td>'+tiret+tiret+tiret+'</tr>')
-    +ligne('Somme perçue',V.somme,C.somme,fmt)
-    +'</table><p style="font-size:13px;color:#555">Restants / écart = calendriers de l\'an dernier (feuille calendrier2025) − réalisés cette année ; un nombre négatif (en vert) signifie plus que l\'an dernier. Réalisés = logements avec don, dans un secteur tracé.</p>';
+    +(OBJ?ligne('Écart (cette année − an dernier)',V.real-O.ville,C.real-O.campagne,ecart):'<tr><td>Écart (cette année − an dernier)</td>'+tiret+tiret+tiret+'</tr>')
+    +(e?ligne('Somme perçue',V.somme,C.somme,fmt):'')
+    +'</table><p style="font-size:13px;color:#555">Écart = réalisés cette année − calendriers de l\'an dernier (feuille calendrier2025) ; négatif (rouge) = en retard sur l\'an dernier, positif (vert) = en avance. Réalisés = logements avec don, dans un secteur tracé.</p>';
+  if(!e){
+    const dif=(a,b)=>OBJ?ecart(a-b):'—';
+    h+='<h4>Détail par tournée</h4><div style="overflow-x:auto"><table class="t2"><tr><th>Tournée</th><th>Campagne</th><th>Dif campagne</th><th>Ville</th><th>Dif ville</th><th>Total</th><th>Dif total</th></tr>'
+      +Object.keys(T).map(t=>{const x=T[t];return `<tr><td>${t}</td><td>${x.campagne}</td><td>${dif(x.campagne,x.co)}</td><td>${x.ville}</td><td>${dif(x.ville,x.vo)}</td><td>${x.campagne+x.ville}</td><td>${dif(x.campagne+x.ville,x.co+x.vo)}</td></tr>`}).join('')
+      +'</table></div>';
+  }
   if(e){
     const jours=Object.keys(J).sort().reverse();
     h+=`<h4>Calendriers par jour — Équipe ${esc(e)}</h4>`;
