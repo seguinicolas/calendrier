@@ -25,7 +25,8 @@
 #rtab table{width:100%;border-collapse:collapse;font-size:16px}
 #rtab th,#rtab td{padding:12px 8px;border-bottom:1px solid #ddd;text-align:right}
 #rtab th:first-child,#rtab td:first-child{text-align:left}
-#rtab tr:last-child td{font-weight:700}
+#rtab table.t1 tr:last-child td{font-weight:700}
+#rtab h4{margin:22px 0 6px;font-size:16px}
 #manuel{position:absolute;top:62px;right:10px;z-index:999;background:#fff;border:2px solid #0004;border-radius:6px;padding:6px 8px;font-size:14px;font-weight:700}
 #manuel.on{background:#1a73e8;color:#fff}
 #aide{display:none;position:absolute;top:100px;left:50%;transform:translateX(-50%);z-index:1000;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:0 1px 4px #0006;white-space:nowrap}
@@ -40,7 +41,7 @@
 <div id="aide">Touchez la carte pour placer le point</div>
 <button id="recapbtn">📊 Récap</button>
 <div id="recap" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
-  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><b id="rtitre">Récapitulatif</b><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
+  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><select id="rsel" style="font-size:16px;padding:6px 8px;max-width:65%"><option value="">Toutes les tournées</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
   <div id="rtab" style="padding:12px"></div>
 </div>
 <div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button></div>
@@ -68,6 +69,9 @@
 function erreur(m){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#c00;color:#fff;padding:6px;font-size:12px';b.textContent='Erreur : '+m;document.body.appendChild(b)}
 window.onerror=(m,u,l)=>erreur(m+' (ligne '+l+')');
 window.addEventListener('unhandledrejection',e=>erreur(String(e.reason)));
+// Mode test : ouvrir l'adresse avec ?test=1 (rien n'est envoyé au Google Sheet)
+const TEST=new URLSearchParams(location.search).has('test');
+if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
 const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
@@ -132,7 +136,9 @@ function addMarker(r){
     mk.on('click',()=>showAdr(mk));
     pts[base]=mk;
   }
-  mk.L[n]=r;
+  const prev=mk.L[n];mk.L[n]=r;
+  mk.D=mk.D||{};
+  if(r.type==='don'){if(!prev||prev.type!=='don'||!mk.D[n])mk.D[n]=r.date}else delete mk.D[n];
   const col=couleurMk(mk);
   if(mk.gps)mk.setIcon(carre(col));else mk.setStyle({fillColor:col,radius:8});
   if(mk.gps&&r.adresse)mk.a.adresse=r.adresse;
@@ -145,7 +151,7 @@ const getQ=()=>JSON.parse(localStorage.getItem('q')||'[]');
 const setQ=q=>localStorage.setItem('q',JSON.stringify(q));
 let envoi=false;
 async function flush(){
-  if(envoi)return;envoi=true;let ok=true;
+  if(TEST||envoi)return;envoi=true;let ok=true;
   try{
     while(getQ().length){
       const r=getQ()[0];
@@ -156,7 +162,9 @@ async function flush(){
   envoi=false;
   if(ok&&getQ().length)flush();
 }
-function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));setQ([...getQ(),r]);addMarker(r);flush()}
+function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));
+  if(TEST){addMarker(r);return}
+ setQ([...getQ(),r]);addMarker(r);flush()}
 
 function needPos(){if(!pos){alert('Position GPS pas encore trouvée');return false}return true}
 
@@ -227,26 +235,46 @@ $('pclose').onclick=()=>$('panel').style.display='none';
 // Charger l'historique
 // Récapitulatif ville / campagne
 const fmt=n=>n.toFixed(2).replace('.00','').replace('.',',')+' €';
-function recap(){
-  const e=$('eqsel').value;
-  const R={ville:{real:0,rest:0,somme:0},campagne:{real:0,rest:0,somme:0}};
+let OBJ=null; // calendriers de l'année dernière (feuille calendrier2025)
+function chargerObj(){return fetch(API+'?objectifs=1').then(r=>r.json()).then(d=>{if(d&&Array.isArray(d.objectifs))OBJ=d.objectifs}).catch(()=>{})}
+const jourLocal=dt=>{const d=new Date(dt);return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function rendreRecap(){
+  const e=$('rsel').value;
+  const R={ville:{real:0,somme:0},campagne:{real:0,somme:0}};
   const zone=a=>{equipe(a);return a.zone&&(!e||String(a.eq)===e)?R[a.zone]:null};
+  const J={}; // jour -> dons par zone (équipe choisie)
   Object.values(pts).forEach(mk=>{
     const z=zone(mk.a);if(!z)return;
-    const rs=Object.values(mk.L);
-    rs.forEach(r=>{if(r.type==='don'){z.real++;z.somme+=Number(r.montant)||0}});
-    if(!mk.gps){if(!rs.length)z.rest++;else z.rest+=rs.filter(r=>r.type==='absent').length}
+    Object.values(mk.L).forEach(r=>{if(r.type==='don'){z.real++;z.somme+=Number(r.montant)||0}});
+    if(e)Object.values(mk.D||{}).forEach(dt=>{const k=jourLocal(dt);if(!k)return;(J[k]=J[k]||{ville:0,campagne:0})[mk.a.zone]++});
   });
+  const O={ville:0,campagne:0};
+  if(OBJ)OBJ.forEach(x=>{if(!e||String(x.t)===e){O.ville+=Number(x.ville)||0;O.campagne+=Number(x.campagne)||0}});
   const V=R.ville,C=R.campagne;
   const ligne=(t,a,b,f)=>`<tr><td>${t}</td><td>${f(a)}</td><td>${f(b)}</td><td>${f(a+b)}</td></tr>`;
-  $('rtitre').textContent='Récapitulatif'+(e?' — Équipe '+e:' — Toutes les équipes');
-  $('rtab').innerHTML='<table><tr><th></th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
+  const tiret='<td>—</td>';
+  const ecart=n=>n<0?`<b style="color:#2e9e4f">${String(n).replace('-','−')}</b>`:String(n);
+  let h='<table class="t1"><tr><th></th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
+    +(OBJ?ligne("Calendriers de l'an dernier",O.ville,O.campagne,String):'<tr><td>Calendriers de l\'an dernier</td>'+tiret+tiret+tiret+'</tr>')
     +ligne('Calendriers réalisés',V.real,C.real,String)
-    +ligne('Calendriers restants',V.rest,C.rest,String)
+    +(OBJ?ligne('Restants / écart',O.ville-V.real,O.campagne-C.real,ecart):'<tr><td>Restants / écart</td>'+tiret+tiret+tiret+'</tr>')
     +ligne('Somme perçue',V.somme,C.somme,fmt)
-    +'</table><p style="font-size:13px;color:#555">Réalisés = logements avec don. Restants = adresses sans saisie + logements absents. Les adresses hors secteur ne sont pas comptées.</p>';
-  $('recap').style.display='block';
+    +'</table><p style="font-size:13px;color:#555">Restants / écart = calendriers de l\'an dernier (feuille calendrier2025) − réalisés cette année ; un nombre négatif (en vert) signifie plus que l\'an dernier. Réalisés = logements avec don, dans un secteur tracé.</p>';
+  if(e){
+    const jours=Object.keys(J).sort().reverse();
+    h+=`<h4>Calendriers par jour — Équipe ${esc(e)}</h4>`;
+    h+=jours.length?'<table><tr><th>Date</th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
+      +jours.map(k=>`<tr><td>${k.split('-').reverse().join('/')}</td><td>${J[k].ville}</td><td>${J[k].campagne}</td><td>${J[k].ville+J[k].campagne}</td></tr>`).join('')+'</table>'
+      :'<p style="color:#555">Aucun calendrier enregistré pour l\'instant.</p>';
+  }
+  $('rtab').innerHTML=h;
 }
+function recap(){
+  $('rsel').value=$('eqsel').value;
+  rendreRecap();$('recap').style.display='block';
+  chargerObj().then(()=>{if($('recap').style.display==='block')rendreRecap()});
+}
+$('rsel').onchange=rendreRecap;
 $('recapbtn').onclick=recap;
 $('rclose').onclick=()=>$('recap').style.display='none';
 
