@@ -78,7 +78,9 @@ if(!window.L){document.body.insertAdjacentHTML('afterbegin','<div style="padding
 // Mode test : ouvrir l'adresse avec ?test=1 (rien n'est envoyé au Google Sheet)
 const TEST=new URLSearchParams(location.search).has('test');
 if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
-const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
+// BETA : écrit dans la COPIE DE TEST du Google Sheet (jamais dans le vrai)
+const API = 'https://script.google.com/macros/s/AKfycbwzsuFlPsWSnWtzsKl9brcUMuMFPRSChVhiXRAZkFTh7SzUsOPB8zSoNo5ETwCJr0tq/exec';
+if(!TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='BETA — données de la copie de test';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a73e8cc;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
 const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
@@ -358,6 +360,12 @@ function popupMk(mk,extra){
     const bloc=document.createElement('div');
     bloc.style.cssText='margin-top:8px;padding-top:6px;'+(multi?'border-top:1px solid #ddd':'');
     bloc.innerHTML=(multi?`<b>Logement ${n}</b>`:'')+(rec?`${multi?' — ':''}${esc(rec.nom)||'(sans nom)'}<br><small>${esc(statutTxt(rec))}</small><br>`:(multi?'<br>':''));
+    // Un don ne peut plus être modifié après le jour où il a été enregistré
+    const jr=rec&&rec.type==='don'?jourLocal(rec.date):'';
+    if(jr&&jr!==jourLocal(new Date().toISOString())){
+      bloc.insertAdjacentHTML('beforeend',`<span style="color:#555">🔒 Don du ${esc(jr.split('-').reverse().join('/'))} — non modifiable</span>`);
+      d.appendChild(bloc);return;
+    }
     ['don','absent','inoccupe'].filter(t=>!mk.gps||t!=='inoccupe').forEach(t=>{
       const act=rec&&rec.type===t,b=document.createElement('button');
       b.textContent=LAB[t];
@@ -395,7 +403,7 @@ function chargerAdresses(){
 // Chargement initial puis actualisation automatique (1 min) des saisies des autres
 let vus=0,encours=false;
 const traiter=rows=>rows.forEach(r=>{try{addMarker(r)}catch(e){}});
-Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.length;traiter(rows)});
+Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.reduce((m,r)=>Math.max(m,Number(r.maj)||0),0);traiter(rows)});
 function actualiser(){
   if(encours||document.hidden||!navigator.onLine)return;
   encours=true;flush();
