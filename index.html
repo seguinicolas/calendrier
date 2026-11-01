@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Calendriers 🚒</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>window.L||document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>')</script>
+<script>window.L||document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>')</script>
 <style>
   html,body{height:100%;margin:0;font-family:system-ui,sans-serif}
   #map{position:absolute;inset:0 0 90px 0}
@@ -72,6 +74,7 @@
 function erreur(m){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#c00;color:#fff;padding:6px;font-size:12px';b.textContent='Erreur : '+m;document.body.appendChild(b)}
 window.onerror=(m,u,l)=>erreur(m+' (ligne '+l+')');
 window.addEventListener('unhandledrejection',e=>erreur(String(e.reason)));
+if(!window.L){document.body.insertAdjacentHTML('afterbegin','<div style="padding:24px;font:17px sans-serif">La carte n\'a pas pu se charger (problème de connexion). Rechargez la page.</div>');throw new Error('Leaflet non chargé')}
 // Mode test : ouvrir l'adresse avec ?test=1 (rien n'est envoyé au Google Sheet)
 const TEST=new URLSearchParams(location.search).has('test');
 if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
@@ -258,12 +261,13 @@ function rendreRecap(){
   const V=R.ville,C=R.campagne;
   const ligne=(t,a,b,f)=>`<tr><td>${t}</td><td>${f(a)}</td><td>${f(b)}</td><td>${f(a+b)}</td></tr>`;
   const tiret='<td>—</td>';
+  const moy=(som,n)=>n?fmt(som/n):'—';
   const ecart=n=>n<0?`<b style="color:#d32f2f">${String(n).replace('-','−')}</b>`:n>0?`<b style="color:#2e9e4f">+${n}</b>`:'0';
   let h='<table class="t1"><tr><th></th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
     +(OBJ?ligne("Calendriers de l'an dernier",O.ville,O.campagne,String):'<tr><td>Calendriers de l\'an dernier</td>'+tiret+tiret+tiret+'</tr>')
     +ligne('Calendriers réalisés',V.real,C.real,String)
+    +(e?`<tr><td>Moyenne par calendrier</td><td>${moy(V.somme,V.real)}</td><td>${moy(C.somme,C.real)}</td><td>${moy(V.somme+C.somme,V.real+C.real)}</td></tr>`:'')
     +(OBJ?ligne('Écart (cette année − an dernier)',V.real-O.ville,C.real-O.campagne,ecart):'<tr><td>Écart (cette année − an dernier)</td>'+tiret+tiret+tiret+'</tr>')
-    +(e?ligne('Somme perçue',V.somme,C.somme,fmt):'')
     +'</table><p style="font-size:13px;color:#555">Écart = réalisés cette année − calendriers de l\'an dernier (feuille calendrier2025) ; négatif (rouge) = en retard sur l\'an dernier, positif (vert) = en avance. Réalisés = logements avec don, dans un secteur tracé.</p>';
   if(!e){
     const dif=(a,b)=>OBJ?ecart(a-b):'—';
