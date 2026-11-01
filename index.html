@@ -358,6 +358,12 @@ function popupMk(mk,extra){
     const bloc=document.createElement('div');
     bloc.style.cssText='margin-top:8px;padding-top:6px;'+(multi?'border-top:1px solid #ddd':'');
     bloc.innerHTML=(multi?`<b>Logement ${n}</b>`:'')+(rec?`${multi?' — ':''}${esc(rec.nom)||'(sans nom)'}<br><small>${esc(statutTxt(rec))}</small><br>`:(multi?'<br>':''));
+    // Un don ne peut plus être modifié après le jour où il a été enregistré
+    const jr=rec&&rec.type==='don'?jourLocal(rec.date):'';
+    if(jr&&jr!==jourLocal(new Date().toISOString())){
+      bloc.insertAdjacentHTML('beforeend',`<span style="color:#555">🔒 Don du ${esc(jr.split('-').reverse().join('/'))} — non modifiable</span>`);
+      d.appendChild(bloc);return;
+    }
     ['don','absent','inoccupe'].filter(t=>!mk.gps||t!=='inoccupe').forEach(t=>{
       const act=rec&&rec.type===t,b=document.createElement('button');
       b.textContent=LAB[t];
@@ -395,7 +401,7 @@ function chargerAdresses(){
 // Chargement initial puis actualisation automatique (1 min) des saisies des autres
 let vus=0,encours=false;
 const traiter=rows=>rows.forEach(r=>{try{addMarker(r)}catch(e){}});
-Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.length;traiter(rows)});
+Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.reduce((m,r)=>Math.max(m,Number(r.maj)||0),0);traiter(rows)});
 function actualiser(){
   if(encours||document.hidden||!navigator.onLine)return;
   encours=true;flush();
