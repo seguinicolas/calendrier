@@ -31,6 +31,11 @@
 #rtab table.t2{font-size:13px}
 #rtab table.t2 th,#rtab table.t2 td{padding:8px 4px;text-align:center}
 #rtab table.t2 th:first-child,#rtab table.t2 td:first-child{text-align:center;font-weight:700}
+#rtab table.t2 table.t3{width:100%;font-size:13px;margin:2px 0 8px}
+#rtab table.t2 table.t3 th,#rtab table.t2 table.t3 td{padding:6px 4px;text-align:left;font-weight:400;border-bottom:1px solid #eee}
+#rtab table.t2 table.t3 th{font-weight:700}
+#rtab table.t2 table.t3 td:last-child,#rtab table.t2 table.t3 th:last-child{text-align:right}
+#rtab tr.det>td{background:#f7f9fc}
 #rtab h4{margin:22px 0 6px;font-size:16px}
 #manuel{position:absolute;top:62px;right:10px;z-index:999;background:#fff;border:2px solid #0004;border-radius:6px;padding:6px 8px;font-size:14px;font-weight:700}
 #manuel.on{background:#1a73e8;color:#fff}
@@ -245,6 +250,7 @@ $('pclose').onclick=()=>$('panel').style.display='none';
 const fmt=n=>n.toFixed(2).replace('.00','').replace('.',',')+' €';
 let OBJ=null; // calendriers de l'année dernière (feuille calendrier2025)
 function chargerObj(){return fetch(API+'?objectifs=1').then(r=>r.json()).then(d=>{if(d&&Array.isArray(d.objectifs))OBJ=d.objectifs}).catch(()=>{})}
+const ouverts=new Set(); // jours dont le détail est ouvert
 const jourLocal=dt=>{const d=new Date(dt);return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 function rendreRecap(){
   const e=$('rsel').value;
@@ -256,7 +262,7 @@ function rendreRecap(){
     const z=zone(mk.a);if(!z)return;
     Object.values(mk.L).forEach(r=>{if(r.type==='don'){z.real++;z.somme+=Number(r.montant)||0}});
     if(!e){const t=+mk.a.eq;if(T[t])Object.values(mk.L).forEach(r=>{if(r.type==='don')T[t][mk.a.zone]++})}
-    if(e)Object.values(mk.D||{}).forEach(dt=>{const k=jourLocal(dt);if(!k)return;(J[k]=J[k]||{ville:0,campagne:0})[mk.a.zone]++});
+    if(e)Object.entries(mk.D||{}).forEach(([n,dt])=>{const k=jourLocal(dt);if(!k)return;const x=J[k]=J[k]||{ville:0,campagne:0,sville:0,scampagne:0,dons:[]};const r=mk.L[n]||{};x[mk.a.zone]++;x['s'+mk.a.zone]+=Number(r.montant)||0;x.dons.push({dt,nom:r.nom,lieu:(mk.a.adresse||r.adresse||'Position GPS')+(+n>1?' · logement '+n:''),m:Number(r.montant)||0})});
   });
   const O={ville:0,campagne:0};
   if(OBJ)OBJ.forEach(x=>{if(!e||String(x.t)===e){O.ville+=Number(x.ville)||0;O.campagne+=Number(x.campagne)||0}if(T[x.t]){T[x.t].vo=Number(x.ville)||0;T[x.t].co=Number(x.campagne)||0}});
@@ -280,18 +286,30 @@ function rendreRecap(){
   if(e){
     const jours=Object.keys(J).sort().reverse();
     h+=`<h4>Calendriers par jour — Équipe ${esc(e)}</h4>`;
-    h+=jours.length?'<table><tr><th>Date</th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
-      +jours.map(k=>`<tr><td>${k.split('-').reverse().join('/')}</td><td>${J[k].ville}</td><td>${J[k].campagne}</td><td>${J[k].ville+J[k].campagne}</td></tr>`).join('')+'</table>'
+    h+=jours.length?'<div style="overflow-x:auto"><table class="t2"><tr><th>Date</th><th>Ville</th><th>Campagne</th><th>Total</th><th>€ ville</th><th>€ campagne</th><th>€ total</th></tr>'
+      +jours.map(k=>{
+        const x=J[k],ouvert=ouverts.has(k);
+        const det=x.dons.sort((p,q)=>String(p.dt).localeCompare(String(q.dt))).map(d=>`<tr><td>${esc(d.nom)||'(sans nom)'}</td><td>${esc(d.lieu)}</td><td>${fmt(d.m)}</td></tr>`).join('');
+        return `<tr data-j="${k}" style="cursor:pointer"><td><b class="fl">${ouvert?'▾':'▸'}</b> ${k.split('-').reverse().join('/')}</td><td>${x.ville}</td><td>${x.campagne}</td><td>${x.ville+x.campagne}</td><td>${fmt(x.sville)}</td><td>${fmt(x.scampagne)}</td><td>${fmt(x.sville+x.scampagne)}</td></tr>`
+          +`<tr class="det" style="${ouvert?'':'display:none'}"><td colspan="7"><table class="t3"><tr><th>Nom</th><th>Lieu</th><th>Somme</th></tr>${det}<tr><td colspan="2"><b>Total · ${x.dons.length} calendrier${x.dons.length>1?'s':''}</b></td><td><b>${fmt(x.sville+x.scampagne)}</b></td></tr></table></td></tr>`;
+      }).join('')+'</table></div>'
       :'<p style="color:#555">Aucun calendrier enregistré pour l\'instant.</p>';
   }
   $('rtab').innerHTML=h;
 }
 function recap(){
+  ouverts.clear();
   $('rsel').value=$('eqsel').value;
   rendreRecap();$('recap').style.display='block';
   chargerObj().then(()=>{if($('recap').style.display==='block')rendreRecap()});
 }
-$('rsel').onchange=rendreRecap;
+$('rsel').onchange=()=>{ouverts.clear();rendreRecap()};
+$('rtab').onclick=e=>{
+  const tr=e.target.closest&&e.target.closest('tr[data-j]');if(!tr)return;
+  const det=tr.nextElementSibling,k=tr.dataset.j,ouvre=det.style.display==='none';
+  det.style.display=ouvre?'':'none';ouvre?ouverts.add(k):ouverts.delete(k);
+  tr.querySelector('.fl').textContent=ouvre?'▾':'▸';
+};
 $('recapbtn').onclick=recap;
 $('rclose').onclick=()=>$('recap').style.display='none';
 
