@@ -56,6 +56,26 @@ table.cpt th{background:#e8eefb;text-align:center}
 table.cpt td:nth-child(1),table.cpt td:nth-child(2),table.cpt td:nth-child(3){text-align:center}
 table.cpt td:last-child{text-align:center}
 table.cpt tr.tot td{font-weight:700;background:#f1f4fa}
+table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table.cpt tr.sel td{background:#dbe7ff}
+#admin .in.large{max-width:none;margin:0;padding-left:10px;padding-right:14px}
+.cptwrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:start}
+.cptleft h3{margin:0 0 8px}
+.cptleft{max-width:640px}
+@media (max-width:1100px){.cptwrap{grid-template-columns:1fr}.cptleft{max-width:none;overflow-x:auto}}
+.cptform{background:#e3f6ff;border:1px solid #b7dff3;border-radius:10px;padding:12px 14px}
+.cptform h4{margin:0 0 10px;font-size:16px}
+.cptform label{display:block;font-size:13px;color:#33475b}
+.cptform input,.cptform select{display:block;width:100%;box-sizing:border-box;margin-top:3px;padding:7px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
+.cptform input.gris{background:#d9dde2;font-weight:700}
+.grille{display:grid;gap:10px 14px;margin-bottom:12px}
+.g5{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.coupures{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 14px;margin:4px 0 12px}
+.cp{display:grid;grid-template-columns:52px 14px 1fr 14px 1fr;align-items:center;gap:6px}
+.cp input{margin:0}.cp .v{font-weight:700}
+.boutons{display:flex;gap:14px;margin:6px 0}
+.boutons button{flex:1;max-width:220px;font-size:16px;padding:10px;border:1px solid #888;border-radius:6px;cursor:pointer;font-weight:700}
+.boutons .rouge{background:#ffbcbc}.boutons .vert{background:#7dff7d}
 table.cpt input[type=checkbox]{width:20px;height:20px}
 #abar{position:fixed;top:0;left:0;right:0;height:52px;background:#1a2b4c;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;z-index:50;box-shadow:0 2px 6px #0004;font-family:system-ui,sans-serif}
 #abar b{font-size:17px}
@@ -366,7 +386,7 @@ function majEtat(){
   const adr=Object.values(pts).filter(m=>!m.gps).length;
   $('etat').textContent=adr?`${adr} adresses · ${items.length} logements saisis · données à jour`:'Chargement des données…';
 }
-function panneau(html){$('apanel').innerHTML=html;$('admin').scrollTop=0}
+function panneau(html,large){$('apanel').innerHTML=html;$('admin').scrollTop=0;$('admin').querySelector('.in').classList.toggle('large',!!large)}
 // ---- Menu hamburger
 function ouvrirMenu(o){$('drawer').classList.toggle('open',o);$('veil').classList.toggle('open',o);$('burger').setAttribute('aria-expanded',String(o))}
 $('burger').onclick=()=>ouvrirMenu(!$('drawer').classList.contains('open'));
@@ -403,22 +423,90 @@ function lignesComptage(){
   return Object.keys(G).sort((x,y)=>{const[a,b]=[x.split('|'),y.split('|')];return b[0].localeCompare(a[0])||a[1].localeCompare(b[1])||a[2].localeCompare(b[2])}).map(k=>G[k]);
 }
 const lireCoches=()=>{try{return JSON.parse(localStorage.getItem('cpt')||'{}')}catch(e){return{}}};
+const VAL=[0.5,1,2,5,10,20,50,100];
+
+
+function formulaireHtml(){
+  const opts=Array.from({length:13},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  const coupures=VAL.map((v,i)=>`<div class="cp"><span class="v">${String(v).replace('.',',')} €</span><span>×</span><input id="c${i}" type="number" min="0" step="1" inputmode="numeric"><span>=</span><input id="m${i}" class="gris" readonly tabindex="-1"></div>`).join('');
+  return `<form class="cptform" id="cf" autocomplete="off" onsubmit="return false">
+    <h4>Saisie du comptage</h4>
+    <div class="grille g5">
+      <label>Date<input id="f-date" class="gris" readonly value="${new Date().toLocaleDateString('fr-FR')}"></label>
+      <label>Date tournée<input id="f-dt" type="date"></label>
+      <label>N° tournée<select id="f-t"><option value="">—</option>${opts}</select></label>
+      <label>Équipier 1<input id="f-e1"></label>
+      <label>Équipier 2<input id="f-e2"></label>
+    </div>
+    <div class="grille g4">
+      <label>Campagne / Ville<select id="f-z"><option value="">—</option><option value="campagne">Campagne</option><option value="ville">Ville</option></select></label>
+      <label>Tournée / Boîte aux lettres<select id="f-ty"><option value="tournee">Tournée</option><option value="boite">Boîte aux lettres</option></select></label>
+      <label>Nombre de calendriers<input id="f-nb" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Moyenne<input id="f-moy" class="gris" readonly tabindex="-1"></label>
+    </div>
+    <div class="coupures">${coupures}</div>
+    <div class="grille g5">
+      <label>Chèques (nombre)<input id="f-chn" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Chèques (montant €)<input id="f-chm" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Monnaie (montant €)<input id="f-mon" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Espèces<input id="f-esp" class="gris" readonly tabindex="-1"></label>
+      <label>Total<input id="f-tot" class="gris" readonly tabindex="-1"></label>
+    </div>
+    <div class="boutons"><button type="button" id="f-annuler" class="rouge">Annuler</button><button type="button" id="f-valider" class="vert">Valider</button></div>
+    <p id="f-msg" class="note"></p>
+    <p class="note">Aperçu de la mise en page : le bouton Valider calcule mais n'enregistre rien pour l'instant.</p>
+  </form>`;
+}
+function calcForm(){
+  let esp=0;
+  VAL.forEach((v,i)=>{const q=Math.max(0,Math.floor(Number($('c'+i).value)||0)),m=q*v;$('m'+i).value=q?fmt(m):'';esp+=m});
+  esp+=Number($('f-mon').value)||0;
+  const chq=Number($('f-chm').value)||0,tot=esp+chq,nb=Number($('f-nb').value)||0;
+  $('f-esp').value=fmt(esp);$('f-tot').value=fmt(tot);$('f-moy').value=nb>0?fmt(tot/nb):'';
+  return {esp,chq,tot,nb};
+}
+function msgForm(t,erreur){const m=$('f-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
+function resetForm(){
+  $('cf').querySelectorAll('input:not([readonly]),select').forEach(x=>{if(x.id==='f-ty')x.value='tournee';else x.value=''});
+  document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
+}
+
+function validerForm(){
+  const c=calcForm(),dt=$('f-dt').value,t=$('f-t').value,z=$('f-z').value;
+  if(!dt||!t||!z){msgForm('Renseigne la date de la tournée, le n° de tournée et campagne / ville.',true);return}
+  if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
+  msgForm('Aperçu : rien n\'est enregistré pour l\'instant. Total calculé : '+fmt(c.tot)+(c.nb>0?' · moyenne '+fmt(c.tot/c.nb):''));
+}
 $('ab-cpt').onclick=()=>{
   const L=lignesComptage(),coches=lireCoches();
   let tn=0,ts=0;
   const lignes=L.map(g=>{
     tn+=g.n;ts+=g.s;
     const cle=g.jour+'|'+g.t+'|'+g.z;
-    return `<tr><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.s/g.n)}</td><td><input type="checkbox" data-c="${esc(cle)}"${coches[cle]?' checked':''}></td></tr>`;
+    return `<tr class="lg" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.s/g.n)}</td><td><input type="checkbox" data-c="${esc(cle)}"${coches[cle]?' checked':''}></td></tr>`;
   }).join('');
-  panneau(`<h3>Comptage</h3>
-    <div style="overflow-x:auto"><table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>✔</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">Aucun don enregistré pour l\'instant.</td></tr>'}${L.length?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(ts/tn)}</td><td></td></tr>`:''}</table></div>
-    <p class="note">Les cases cochées sont mémorisées sur cet appareil seulement. « Hors secteur » : dons situés hors de tes secteurs tracés.</p>`);
-  $('apanel').querySelectorAll('input[data-c]').forEach(c=>c.onchange=()=>{
-    const m=lireCoches();c.checked?m[c.dataset.c]=1:delete m[c.dataset.c];
-    try{localStorage.setItem('cpt',JSON.stringify(m))}catch(e){}
+  panneau(`<div class="cptwrap">
+    <div class="cptleft">
+      <h3>Comptage</h3>
+      <table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>✔</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">Aucun don enregistré pour l\'instant.</td></tr>'}${L.length?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(ts/tn)}</td><td></td></tr>`:''}</table>
+      <p class="note">Appuie sur une ligne pour préremplir le formulaire. Cases cochées : mémorisées sur cet appareil. « Hors secteur » : dons hors de tes secteurs tracés.</p>
+    </div>
+    ${formulaireHtml()}
+  </div>`,true);
+  $('apanel').querySelectorAll('input[data-c]').forEach(c=>{
+    c.onclick=e=>e.stopPropagation();
+    c.onchange=()=>{const m=lireCoches();c.checked?m[c.dataset.c]=1:delete m[c.dataset.c];try{localStorage.setItem('cpt',JSON.stringify(m))}catch(e){}};
   });
+  $('apanel').querySelectorAll('tr.lg').forEach(tr=>tr.onclick=()=>{
+    document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));tr.classList.add('sel');
+    $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
+  });
+  $('cf').addEventListener('input',calcForm);
+  $('f-annuler').onclick=()=>{resetForm();msgForm('')};
+  $('f-valider').onclick=validerForm;
+  calcForm();
 };
+
 $('ab-param').onclick=()=>{
   const adr=Object.values(pts).filter(m=>!m.gps).length;
   panneau(`<h3>Paramètres</h3>
