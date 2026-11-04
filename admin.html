@@ -57,18 +57,37 @@ table.cpt td:nth-child(1),table.cpt td:nth-child(2),table.cpt td:nth-child(3){te
 table.cpt td:last-child{text-align:center}
 table.cpt tr.tot td{font-weight:700;background:#f1f4fa}
 table.cpt input[type=checkbox]{width:20px;height:20px}
+#abar{position:fixed;top:0;left:0;right:0;height:52px;background:#1a2b4c;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;z-index:50;box-shadow:0 2px 6px #0004;font-family:system-ui,sans-serif}
+#abar b{font-size:17px}
+#burger{width:44px;height:44px;border:0;background:transparent;color:#fff;font-size:28px;line-height:1;cursor:pointer;border-radius:8px}
+#burger:hover,#burger:focus{background:#ffffff22}
+#veil{position:fixed;inset:0;background:#0006;z-index:1999;display:none}
+#veil.open{display:block}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:300px;max-width:85vw;background:#fff;z-index:2000;transform:translateX(100%);transition:transform .2s;box-shadow:-4px 0 16px #0005;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
+#drawer.open{transform:none}
+#drawer .tete{display:flex;justify-content:space-between;align-items:center;padding:12px 8px 12px 18px;background:#1a2b4c;color:#fff;font-weight:700}
+#drawer .tete button{border:0;background:transparent;color:#fff;font-size:26px;cursor:pointer;width:44px;height:44px}
+.mi{display:block;width:100%;text-align:left;font-size:17px;padding:16px 18px;border:0;border-bottom:1px solid #e6e9f0;background:#fff;color:#1a2b4c;cursor:pointer}
+.mi:hover,.mi:focus{background:#f1f4fa}
+.mi.on{background:#e8eefb;font-weight:700}
+#drawer .pied{margin-top:auto;padding:12px 18px;color:#777;font-size:12px}
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div id="admin"><div class="in">
-  <h2>Calendriers — Administration</h2>
+<div id="abar"><b>Calendriers — Administration</b><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div>
+<div id="veil"></div>
+<nav id="drawer" aria-label="Menu d'administration">
+  <div class="tete"><span>Menu</span><button id="fermer" aria-label="Fermer le menu">×</button></div>
+  <button class="mi" id="ab-couches">⬇️ Téléchargement des couches</button>
+  <button class="mi" id="ab-recap">📊 Récapitulatif des tournées</button>
+  <button class="mi" id="ab-cpt">🧮 Comptage</button>
+  <button class="mi" id="ab-param">⚙️ Paramètres</button>
+  <div class="pied">Administration · menu v1</div>
+</nav>
+<div id="admin"><div class="in" style="padding-top:76px">
   <p id="etat" class="note">Chargement des données…</p>
-  <button class="ab" id="ab-couches">⬇️ Téléchargement des couches</button>
-  <button class="ab" id="ab-recap">📊 Récapitulatif des tournées</button>
-  <button class="ab" id="ab-cpt">🧮 Comptage</button>
-  <button class="ab" id="ab-param">⚙️ Paramètres</button>
-  <div id="apanel"></div>
+  <div id="apanel"><p class="note">Choisis une rubrique dans le menu ☰ (en haut à droite).</p></div>
 </div></div>
 <select id="eqsel"><option value="">Toutes les équipes</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select>
 <button id="manuel">➕ Point</button><div id="zoomhint">Zoomez pour afficher les points</div>
@@ -347,7 +366,16 @@ function majEtat(){
   const adr=Object.values(pts).filter(m=>!m.gps).length;
   $('etat').textContent=adr?`${adr} adresses · ${items.length} logements saisis · données à jour`:'Chargement des données…';
 }
-function panneau(html){$('apanel').innerHTML=html}
+function panneau(html){$('apanel').innerHTML=html;$('admin').scrollTop=0}
+// ---- Menu hamburger
+function ouvrirMenu(o){$('drawer').classList.toggle('open',o);$('veil').classList.toggle('open',o);$('burger').setAttribute('aria-expanded',String(o))}
+$('burger').onclick=()=>ouvrirMenu(!$('drawer').classList.contains('open'));
+$('fermer').onclick=()=>ouvrirMenu(false);
+$('veil').onclick=()=>ouvrirMenu(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')ouvrirMenu(false)});
+document.querySelectorAll('#drawer .mi').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#drawer .mi').forEach(x=>x.classList.remove('on'));b.classList.add('on');ouvrirMenu(false);
+}));
 $('ab-couches').onclick=()=>{
   panneau(`<h3>Couches</h3>
     <button class="bt" id="dl-hab">⬇️ Habitations et statuts (GeoJSON)</button>
