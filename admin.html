@@ -62,6 +62,10 @@ table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table
 .cptleft h3{margin:0 0 8px}
 .cptleft{max-width:640px}
 @media (max-width:1100px){.cptwrap{grid-template-columns:1fr}.cptleft{max-width:none;overflow-x:auto}}
+.cptdroite{display:flex;align-items:center;justify-content:center;min-height:320px}
+.cptdroite.ouvert{display:block;min-height:0}
+.gros{font-size:20px;font-weight:700;padding:22px 34px;border:0;border-radius:12px;background:#1a73e8;color:#fff;cursor:pointer;box-shadow:0 2px 8px #0003}
+.gros:hover,.gros:focus{background:#1558b0}
 .cptform{background:#e3f6ff;border:1px solid #b7dff3;border-radius:10px;padding:12px 14px}
 .cptform h4{margin:0 0 10px;font-size:16px}
 .cptform label{display:block;font-size:13px;color:#33475b}
@@ -454,7 +458,7 @@ function formulaireHtml(){
     </div>
     <div class="boutons"><button type="button" id="f-annuler" class="rouge">Annuler</button><button type="button" id="f-valider" class="vert">Valider</button></div>
     <p id="f-msg" class="note"></p>
-    <p class="note">Aperçu de la mise en page : le bouton Valider calcule mais n'enregistre rien pour l'instant.</p>
+    <p class="note">Aperçu de la mise en page : Valider calcule mais n'enregistre rien pour l'instant. Annuler ferme la session.</p>
   </form>`;
 }
 function calcForm(){
@@ -477,6 +481,22 @@ function validerForm(){
   if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
   msgForm('Aperçu : rien n\'est enregistré pour l\'instant. Total calculé : '+fmt(c.tot)+(c.nb>0?' · moyenne '+fmt(c.tot/c.nb):''));
 }
+function remplirDepuisLigne(tr){
+  $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
+}
+function ouvrirSession(){
+  const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
+  $('cf').addEventListener('input',calcForm);
+  $('f-annuler').onclick=fermerSession;
+  $('f-valider').onclick=validerForm;
+  const sel=document.querySelector('table.cpt tr.sel');if(sel)remplirDepuisLigne(sel);
+  calcForm();
+}
+function fermerSession(){
+  const z=$('cptdroite');z.classList.remove('ouvert');
+  z.innerHTML='<button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button>';
+  $('ouvrir-session').onclick=ouvrirSession;
+}
 $('ab-cpt').onclick=()=>{
   const L=lignesComptage(),coches=lireCoches();
   let tn=0,ts=0;
@@ -491,7 +511,7 @@ $('ab-cpt').onclick=()=>{
       <table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>✔</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">Aucun don enregistré pour l\'instant.</td></tr>'}${L.length?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(ts/tn)}</td><td></td></tr>`:''}</table>
       <p class="note">Appuie sur une ligne pour préremplir le formulaire. Cases cochées : mémorisées sur cet appareil. « Hors secteur » : dons hors de tes secteurs tracés.</p>
     </div>
-    ${formulaireHtml()}
+    <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
   </div>`,true);
   $('apanel').querySelectorAll('input[data-c]').forEach(c=>{
     c.onclick=e=>e.stopPropagation();
@@ -499,12 +519,9 @@ $('ab-cpt').onclick=()=>{
   });
   $('apanel').querySelectorAll('tr.lg').forEach(tr=>tr.onclick=()=>{
     document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));tr.classList.add('sel');
-    $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
+    if($('cf'))remplirDepuisLigne(tr);
   });
-  $('cf').addEventListener('input',calcForm);
-  $('f-annuler').onclick=()=>{resetForm();msgForm('')};
-  $('f-valider').onclick=validerForm;
-  calcForm();
+  $('ouvrir-session').onclick=ouvrirSession;
 };
 
 $('ab-param').onclick=()=>{
