@@ -536,13 +536,48 @@ $('ab-cpt').onclick=()=>{
   $('ouvrir-session').onclick=ouvrirSession;
 };
 
-// ---- Paramètres : onglets Personnel et Équipes (lecture de la feuille Parametres ; l'enregistrement viendra à l'étape 3)
+// ---- Paramètres : onglets Personnel et Équipes (lecture et enregistrement dans la feuille Parametres)
 let PARAM=null,PARAM_REF=null,ONGLET='pers';
-function chargerParametres(){
-  return fetch(API+'?parametres=1').then(r=>r.json()).then(d=>{
+const clone=o=>JSON.parse(JSON.stringify(o));
+function lireParam(){
+  return fetch(API+'?parametres=1&t='+Date.now()).then(r=>r.json()).then(d=>{
     if(!d||!Array.isArray(d.personnel)||!Array.isArray(d.equipes))throw new Error('format');
-    PARAM_REF=d;PARAM=JSON.parse(JSON.stringify(d));
+    return d;
   });
+}
+function chargerParametres(){return lireParam().then(d=>{PARAM_REF=d;PARAM=clone(d)})}
+const modifie=()=>JSON.stringify(PARAM)!==JSON.stringify(PARAM_REF);
+function msgEtat(t,erreur){const m=$('p-etat');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
+function majBarre(){
+  const b=$('p-bar');if(!b)return;
+  const m=modifie(),ok=m&&!conflits().length;
+  b.innerHTML=`<div class="boutons"><button type="button" class="rouge" id="p-annuler"${m?'':' disabled'}>Annuler les modifications</button><button type="button" class="vert" id="p-enreg"${ok?'':' disabled'}>Enregistrer</button></div><p id="p-etat" class="note">${m?'Modifications non enregistrées.':''}</p>`;
+  $('p-annuler').onclick=()=>{PARAM=clone(PARAM_REF);ONGLET==='pers'?rendrePersonnel():rendreEquipes()};
+  $('p-enreg').onclick=enregistrerParam;
+}
+async function enregistrerParam(){
+  if(TEST){msgEtat("Mode test : rien n'est envoyé au Sheet.",true);return}
+  let code='';try{code=sessionStorage.getItem('adm')||''}catch(e){}
+  if(!code){code=(prompt('Code administrateur :')||'').trim();if(!code)return}
+  const envoi={personnel:PARAM.personnel.map(p=>({nom:p.nom.trim(),prenom:p.prenom.trim(),code:p.code})),equipes:PARAM.equipes.map(e=>({t:e.t,nom:e.nom.trim(),e1:e.e1,e2:e.e2}))};
+  $('p-enreg').disabled=true;$('p-annuler').disabled=true;msgEtat('Enregistrement en cours…');
+  let d=null;
+  try{const r=await fetch(API,{method:'POST',body:JSON.stringify({action:'parametres',code,...envoi})});d=await r.json()}catch(e){d=null}
+  if(d&&!d.ok){
+    if(d.badcode){try{sessionStorage.removeItem('adm')}catch(e){}}
+    majBarre();msgEtat('Refusé : '+(d.erreur||'erreur inconnue'),true);return;
+  }
+  let neuf;
+  try{neuf=await lireParam()}catch(e){majBarre();msgEtat("Envoyé, mais impossible de relire la feuille pour vérifier. Recharge la page.",true);return}
+  const pareil=JSON.stringify(neuf.equipes)===JSON.stringify(envoi.equipes)&&JSON.stringify(neuf.personnel.map(p=>p.code))===JSON.stringify(envoi.personnel.map(p=>p.code));
+  if((d&&d.ok)||pareil){
+    try{sessionStorage.setItem('adm',code)}catch(e){}
+    PARAM_REF=neuf;PARAM=clone(neuf);
+    ONGLET==='pers'?rendrePersonnel():rendreEquipes();
+    msgEtat('✔ Enregistré dans le Google Sheet.');return;
+  }
+  try{sessionStorage.removeItem('adm')}catch(e){}
+  majBarre();msgEtat("L'enregistrement n'a pas abouti (code incorrect ?). Rien n'a été modifié.",true);
 }
 const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const tourneesDe=code=>PARAM.equipes.filter(e=>e.e1===code||e.e2===code).map(e=>e.t);
@@ -578,25 +613,25 @@ function optionsPers(sel,autre,t){
     +liste.map(p=>{
       const ailleurs=tourneesDe(p.code).filter(x=>x!==t);
       const off=(autre&&p.code===autre)||(ailleurs.length&&p.code!==sel);
-      return `<option value="${esc(p.code)}"${p.code===sel?' selected':''}${off?' disabled':''}>${esc(p.code)} — ${esc(p.prenom)}${ailleurs.length?` (tournée ${ailleurs.join(', ')})`:''}</option>`;
+      return `<option value="${esc(p.code)}"${p.code===sel?' selected':''}${off?' disabled':''}>${esc(p.code)}${ailleurs.length?` (tournée ${ailleurs.join(', ')})`:''}</option>`;
     }).join('');
 }
-function rendrePersonnel(){
+function rendrePersonnel(){majBarre();
   const liste=[...PARAM.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr'));
   const sans=liste.filter(p=>!tourneesDe(p.code).length).length;
   $('po').innerHTML=`<div class="barre-ajout">
       <input id="p-nom" placeholder="Nom (ex. Durand)"><input id="p-prenom" placeholder="Prénom"><button class="bt" id="p-ajouter">➕ Ajouter</button>
     </div>
     <p id="p-msg" class="note"></p>
-    <table class="cpt"><tr><th>Code</th><th>Nom</th><th>Prénom</th><th>Tournée</th><th></th></tr>
-    ${liste.map(p=>{const t=tourneesDe(p.code);return `<tr><td style="text-align:left"><b>${esc(p.code)}</b></td><td style="text-align:left">${esc(p.nom)}</td><td style="text-align:left">${esc(p.prenom)}</td><td>${t.length?t.join(', '):'—'}</td><td><button class="sup" data-code="${esc(p.code)}">🗑 Supprimer</button></td></tr>`}).join('')}
+    <table class="cpt"><tr><th>Nom</th><th>Prénom</th><th>Tournée</th><th></th></tr>
+    ${liste.map(p=>{const t=tourneesDe(p.code);return `<tr><td style="text-align:left">${esc(p.nom)}</td><td style="text-align:left">${esc(p.prenom)}</td><td>${t.length?t.join(', '):'—'}</td><td><button class="sup" data-code="${esc(p.code)}">🗑 Supprimer</button></td></tr>`}).join('')}
     </table>
     <p class="note">${liste.length} personnes · ${sans} sans équipe (c'est normal). Le code (nom + initiale du prénom) est créé automatiquement et ne change plus ensuite.</p>`;
   $('p-ajouter').onclick=()=>{
     const nom=$('p-nom').value.trim(),prenom=$('p-prenom').value.trim();
     if(!nom||!prenom){msgParam('Renseigne le nom et le prénom.',true);return}
     const code=nouveauCode(nom,prenom);
-    PARAM.personnel.push({nom,prenom,code});rendrePersonnel();msgParam('✔ '+code+' ajouté(e) (aperçu : non enregistré).');
+    PARAM.personnel.push({nom,prenom,code});rendrePersonnel();msgParam('✔ '+code+' ajouté(e) : pense à Enregistrer.');
   };
   $('po').querySelectorAll('button.sup').forEach(b=>b.onclick=()=>{
     const code=b.dataset.code,t=tourneesDe(code);
@@ -604,24 +639,22 @@ function rendrePersonnel(){
     if(!confirm(q))return;
     PARAM.personnel=PARAM.personnel.filter(p=>p.code!==code);
     PARAM.equipes.forEach(e=>{if(e.e1===code)e.e1='';if(e.e2===code)e.e2=''});
-    rendrePersonnel();msgParam(code+' supprimé(e) (aperçu : non enregistré).');
+    rendrePersonnel();msgParam(code+' supprimé(e) : pense à Enregistrer.');
   });
 }
-function rendreEquipes(){
+function rendreEquipes(){majBarre();
   const cf=conflits();
-  $('po').innerHTML=(cf.length?`<div style="background:#ffeaea;border:1px solid #d9a0a0;border-radius:6px;padding:8px 12px;margin:8px 0;color:#b71c1c;font-size:14px"><b>⚠ À corriger dans la feuille Parametres :</b><br>${cf.map(esc).join('<br>')}</div>`:'')
+  $('po').innerHTML=(cf.length?`<div style="background:#ffeaea;border:1px solid #d9a0a0;border-radius:6px;padding:8px 12px;margin:8px 0;color:#b71c1c;font-size:14px"><b>⚠ À corriger avant de pouvoir enregistrer :</b><br>${cf.map(esc).join('<br>')}</div>`:'')
     +`<table class="cpt"><tr><th>Tournée</th><th>Nom de la tournée</th><th>Équipier 1</th><th>Équipier 2</th></tr>
     ${PARAM.equipes.map((e,i)=>`<tr data-i="${i}"><td>${e.t}</td><td><input class="e-nom" value="${esc(e.nom)}"></td><td><select class="e-s1">${optionsPers(e.e1,e.e2,e.t)}</select></td><td><select class="e-s2">${optionsPers(e.e2,e.e1,e.t)}</select></td></tr>`).join('')}
     </table>
-    <div class="boutons"><button type="button" class="rouge" id="e-annuler">Annuler les modifications</button><button type="button" class="vert" id="e-enreg" disabled>Enregistrer</button></div>
     <p class="note">Une personne ne peut être affectée qu'à une seule tournée, et pas deux fois dans la même : les noms déjà pris sont grisés avec leur numéro de tournée. ⚠ signale un nom qui n'existe pas dans la liste du personnel.</p>`;
   $('po').querySelectorAll('tr[data-i]').forEach(tr=>{
     const e=PARAM.equipes[+tr.dataset.i];
-    tr.querySelector('.e-nom').oninput=ev=>{e.nom=ev.target.value};
+    tr.querySelector('.e-nom').oninput=ev=>{e.nom=ev.target.value;majBarre()};
     tr.querySelector('.e-s1').onchange=ev=>{e.e1=ev.target.value;rendreEquipes()};
     tr.querySelector('.e-s2').onchange=ev=>{e.e2=ev.target.value;rendreEquipes()};
   });
-  $('e-annuler').onclick=()=>{PARAM=JSON.parse(JSON.stringify(PARAM_REF));rendreEquipes()};
 }
 function ouvrirParametres(onglet){
   if(!PARAM){
@@ -636,8 +669,8 @@ function ouvrirParametres(onglet){
   const adr=Object.values(pts).filter(m=>!m.gps).length;
   panneau(`<div class="pbox"><h3 style="margin-top:0">Paramètres</h3>
     <div class="onglets"><button data-o="pers" class="${ONGLET==='pers'?'on':''}">Personnel</button><button data-o="eq" class="${ONGLET==='eq'?'on':''}">Équipes</button></div>
-    <p class="apercu">Données réelles de la feuille Parametres, en lecture seule pour l'instant : les modifications ne sont pas encore enregistrées.</p>
-    <div id="po"></div>
+    <p class="apercu">Données réelles de la feuille Parametres. Les modifications ne sont envoyées au Google Sheet qu'en appuyant sur Enregistrer.</p>
+    <div id="po"></div><div id="p-bar"></div>
     <p class="note" style="margin-top:22px">Informations : ${adr} adresses chargées, ${items.length} logements saisis, ${Object.keys(pts).length-adr} point(s) hors adresse.</p></div>`,true);
   $('apanel').querySelectorAll('.onglets button').forEach(b=>b.onclick=()=>ouvrirParametres(b.dataset.o));
   ONGLET==='pers'?rendrePersonnel():rendreEquipes();
