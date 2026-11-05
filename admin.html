@@ -536,12 +536,15 @@ $('ab-cpt').onclick=()=>{
   $('ouvrir-session').onclick=ouvrirSession;
 };
 
-// ---- Paramètres : onglets Personnel et Équipes (APERÇU DE LA MISE EN PAGE : données fictives, rien n'est enregistré)
-const PARAM_EXEMPLE={
-  personnel:[['Durand','Alice'],['Durand B','Bruno'],['Moreau','Camille'],['Petit','Daniel'],['Roux','Emma'],['Lambert','Hugo'],['Garnier','Inès'],['Fabre','Jules'],['Henry','Léa'],['Giraud','Marc'],['Lopez','Nina'],['Muller','Oscar'],['Perrin','Paul'],['Renard','Rose']].map(([nom,prenom])=>({nom,prenom})),
-  equipes:[['Salan','Durand','Durand B'],['St just','Moreau','Petit'],['Naucelle Gare','Roux','Lambert'],['Castelmary','Dupuis L','Garnier'],['Tauriac de Naucelle','Fabre','Henry'],['Albagnac','Giraud',''],['Quins','',''],['Sauveterre','Lopez','Muller'],['Jouels','',''],['Crespin','Perrin',''],['Camjac','',''],['Cabanes','',''],['Bonnefon','','']].map(([nom,e1,e2],i)=>({t:i+1,nom,e1,e2}))
-};
+// ---- Paramètres : onglets Personnel et Équipes (lecture de la feuille Parametres ; l'enregistrement viendra à l'étape 3)
 let PARAM=null,ONGLET='pers';
+let PARAM_REF=null;
+function chargerParametres(){
+  return fetch(API+'?parametres=1').then(r=>r.json()).then(d=>{
+    if(!d||!Array.isArray(d.personnel)||!Array.isArray(d.equipes))throw new Error('format');
+    PARAM_REF=d;PARAM=JSON.parse(JSON.stringify(d));
+  });
+}
 const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const tourneesDe=nom=>PARAM.equipes.filter(e=>e.e1===nom||e.e2===nom).map(e=>e.t);
 function msgParam(t,erreur){const m=$('p-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
@@ -590,15 +593,22 @@ function rendreEquipes(){
     tr.querySelector('.e-s1').onchange=ev=>{e.e1=ev.target.value;rendreEquipes()};
     tr.querySelector('.e-s2').onchange=ev=>{e.e2=ev.target.value;rendreEquipes()};
   });
-  $('e-annuler').onclick=()=>{PARAM=JSON.parse(JSON.stringify(PARAM_EXEMPLE));rendreEquipes()};
+  $('e-annuler').onclick=()=>{PARAM=JSON.parse(JSON.stringify(PARAM_REF));rendreEquipes()};
 }
 function ouvrirParametres(onglet){
-  if(!PARAM)PARAM=JSON.parse(JSON.stringify(PARAM_EXEMPLE));
+  if(!PARAM){
+    panneau('<p class="note">Chargement des paramètres…</p>');
+    chargerParametres().then(()=>ouvrirParametres(onglet)).catch(()=>{
+      panneau('<p class="note" style="color:#c62828;font-weight:700">Impossible de lire la feuille Parametres.</p><button class="bt" id="p-retry">Réessayer</button>');
+      $('p-retry').onclick=()=>ouvrirParametres(onglet);
+    });
+    return;
+  }
   ONGLET=onglet||ONGLET;
   const adr=Object.values(pts).filter(m=>!m.gps).length;
   panneau(`<div class="pbox"><h3 style="margin-top:0">Paramètres</h3>
     <div class="onglets"><button data-o="pers" class="${ONGLET==='pers'?'on':''}">Personnel</button><button data-o="eq" class="${ONGLET==='eq'?'on':''}">Équipes</button></div>
-    <p class="apercu">Aperçu de la mise en page : données fictives, rien n'est enregistré dans le Sheet.</p>
+    <p class="apercu">Données réelles de la feuille Parametres, en lecture seule pour l'instant : les modifications ne sont pas encore enregistrées.</p>
     <div id="po"></div>
     <p class="note" style="margin-top:22px">Informations : ${adr} adresses chargées, ${items.length} logements saisis, ${Object.keys(pts).length-adr} point(s) hors adresse.</p></div>`,true);
   $('apanel').querySelectorAll('.onglets button').forEach(b=>b.onclick=()=>ouvrirParametres(b.dataset.o));
