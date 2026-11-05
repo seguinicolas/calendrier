@@ -557,27 +557,22 @@ function majBarre(){
 }
 async function enregistrerParam(){
   if(TEST){msgEtat("Mode test : rien n'est envoyé au Sheet.",true);return}
-  let code='';try{code=sessionStorage.getItem('adm')||''}catch(e){}
-  if(!code){code=(prompt('Code administrateur :')||'').trim();if(!code)return}
   const envoi={personnel:PARAM.personnel.map(p=>({nom:p.nom.trim(),prenom:p.prenom.trim(),code:p.code})),equipes:PARAM.equipes.map(e=>({t:e.t,nom:e.nom.trim(),e1:e.e1,e2:e.e2}))};
   $('p-enreg').disabled=true;$('p-annuler').disabled=true;msgEtat('Enregistrement en cours…');
   let d=null;
-  try{const r=await fetch(API,{method:'POST',body:JSON.stringify({action:'parametres',code,...envoi})});d=await r.json()}catch(e){d=null}
+  try{const r=await fetch(API,{method:'POST',body:JSON.stringify({action:'parametres',...envoi})});d=await r.json()}catch(e){d=null}
   if(d&&!d.ok){
-    if(d.badcode){try{sessionStorage.removeItem('adm')}catch(e){}}
     majBarre();msgEtat('Refusé : '+(d.erreur||'erreur inconnue'),true);return;
   }
   let neuf;
   try{neuf=await lireParam()}catch(e){majBarre();msgEtat("Envoyé, mais impossible de relire la feuille pour vérifier. Recharge la page.",true);return}
   const pareil=JSON.stringify(neuf.equipes)===JSON.stringify(envoi.equipes)&&JSON.stringify(neuf.personnel.map(p=>p.code))===JSON.stringify(envoi.personnel.map(p=>p.code));
   if((d&&d.ok)||pareil){
-    try{sessionStorage.setItem('adm',code)}catch(e){}
     PARAM_REF=neuf;PARAM=clone(neuf);
     ONGLET==='pers'?rendrePersonnel():rendreEquipes();
     msgEtat('✔ Enregistré dans le Google Sheet.');return;
   }
-  try{sessionStorage.removeItem('adm')}catch(e){}
-  majBarre();msgEtat("L'enregistrement n'a pas abouti (code incorrect ?). Rien n'a été modifié.",true);
+  majBarre();msgEtat("L'enregistrement n'a pas abouti. Rien n'a été modifié.",true);
 }
 const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const tourneesDe=code=>PARAM.equipes.filter(e=>e.e1===code||e.e2===code).map(e=>e.t);
