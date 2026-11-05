@@ -509,31 +509,61 @@ function fermerSession(){
   z.innerHTML='<button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button>';
   $('ouvrir-session').onclick=ouvrirSession;
 }
-$('ab-cpt').onclick=()=>{
-  const L=lignesComptage(),coches=lireCoches();
-  let tn=0,ts=0;
-  const lignes=L.map(g=>{
+// ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
+let RECAP=[];
+const lireRecap=()=>fetch(API+'?recap=1&t='+Date.now()).then(r=>r.json()).then(d=>{if(!d||!Array.isArray(d.rows))throw new Error('format');return d});
+function etatCpt(t,erreur){const m=$('cpt-etat');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#555';m.style.fontWeight=erreur?'700':'400'}}
+function tableComptage(d){
+  if(!$('cpt-table'))return;
+  RECAP=d.rows;let tn=0,ts=0;
+  const lignes=RECAP.map((g,i)=>{
     tn+=g.n;ts+=g.s;
-    const cle=g.jour+'|'+g.t+'|'+g.z;
-    return `<tr class="lg" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.s/g.n)}</td><td><input type="checkbox" data-c="${esc(cle)}"${coches[cle]?' checked':''}></td></tr>`;
+    return `<tr class="lg" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td><input type="checkbox"${g.amicale?' checked':''}></td></tr>`;
   }).join('');
-  panneau(`<div class="cptwrap">
-    <div class="cptleft">
-      <h3>Comptage</h3>
-      <table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>✔</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">Aucun don enregistré pour l\'instant.</td></tr>'}${L.length?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(ts/tn)}</td><td></td></tr>`:''}</table>
-      <p class="note">Appuie sur une ligne pour préremplir le formulaire. Cases cochées : mémorisées sur cet appareil. « Hors secteur » : dons hors de tes secteurs tracés.</p>
-    </div>
-    <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
-  </div>`,true);
-  $('apanel').querySelectorAll('input[data-c]').forEach(c=>{
+  $('cpt-table').innerHTML=`<table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>compt_amicale</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">Tableau vide : appuie sur Actualiser.</td></tr>'}${RECAP.length?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
+  $('cpt-maj').textContent=d.maj?'Dernière actualisation : '+d.maj:'Pas encore actualisé';
+  $('cpt-table').querySelectorAll('input[type=checkbox]').forEach(c=>{
     c.onclick=e=>e.stopPropagation();
-    c.onchange=()=>{const m=lireCoches();c.checked?m[c.dataset.c]=1:delete m[c.dataset.c];try{localStorage.setItem('cpt',JSON.stringify(m))}catch(e){}};
+    c.onchange=async()=>{
+      const g=RECAP[+c.closest('tr').dataset.i],val=c.checked;
+      let r=null;
+      try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:g.jour,t:g.t,z:g.z,valeur:val})});r=await x.json()}catch(e){r=null}
+      if(r&&r.ok){g.amicale=val;return}
+      etatCpt('Case non enregistrée ('+((r&&r.erreur)||'pas de réponse')+'). Tableau relu depuis le Sheet.',true);
+      try{tableComptage(await lireRecap())}catch(e){c.checked=!val}
+    };
   });
-  $('apanel').querySelectorAll('tr.lg').forEach(tr=>tr.onclick=()=>{
+  $('cpt-table').querySelectorAll('tr.lg').forEach(tr=>tr.onclick=()=>{
     document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));tr.classList.add('sel');
     if($('cf'))remplirDepuisLigne(tr);
   });
+}
+async function actualiserComptage(){
+  if(TEST){etatCpt("Mode test : rien n'est envoyé au Sheet.",true);return}
+  const b=$('cpt-actu');b.disabled=true;etatCpt('Calcul en cours…');
+  let d=null;
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'recap'})});d=await x.json()}catch(e){d=null}
+  if(d&&d.ok===false){etatCpt('Refusé : '+(d.erreur||'erreur inconnue'),true);b.disabled=false;return}
+  try{
+    if(!(d&&d.ok))d=await lireRecap();
+    tableComptage(d);etatCpt('✔ Tableau actualisé.');
+  }catch(e){etatCpt("Impossible d'actualiser : pas de réponse du Sheet.",true)}
+  if($('cpt-actu'))$('cpt-actu').disabled=false;
+}
+$('ab-cpt').onclick=()=>{
+  panneau(`<div class="cptwrap">
+    <div class="cptleft">
+      <h3>Comptage</h3>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="bt" id="cpt-actu">🔄 Actualiser</button><span id="cpt-maj" class="note"></span></div>
+      <p id="cpt-etat" class="note" style="margin:0 0 8px">Chargement…</p>
+      <div id="cpt-table"></div>
+      <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille. « Hors secteur » : dons hors de tes secteurs tracés.</p>
+    </div>
+    <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
+  </div>`,true);
   $('ouvrir-session').onclick=ouvrirSession;
+  $('cpt-actu').onclick=actualiserComptage;
+  lireRecap().then(d=>{tableComptage(d);etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
 };
 
 // ---- Paramètres : onglets Personnel et Équipes (lecture et enregistrement dans la feuille Parametres)
