@@ -62,6 +62,18 @@ table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table
 .cptleft h3{margin:0 0 8px}
 .cptleft{max-width:640px}
 @media (max-width:1100px){.cptwrap{grid-template-columns:1fr}.cptleft{max-width:none;overflow-x:auto}}
+.pbox{max-width:900px}
+.onglets{display:flex;gap:6px;border-bottom:2px solid #c9d3e6;margin-bottom:10px}
+.onglets button{font-size:16px;font-weight:700;padding:10px 20px;border:0;border-radius:8px 8px 0 0;background:#e8eefb;color:#1a2b4c;cursor:pointer}
+.onglets button.on{background:#1a73e8;color:#fff}
+.apercu{background:#fff4d6;border:1px solid #f0d58a;border-radius:6px;padding:6px 10px;font-size:13px;color:#7a5b00}
+.barre-ajout{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.barre-ajout input{flex:1;min-width:140px;padding:8px 10px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px}
+#po table.cpt{width:100%}
+#po table.cpt input.e-nom,#po table.cpt select{width:100%;box-sizing:border-box;padding:6px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
+#po table.cpt td:nth-child(2),#po table.cpt td:nth-child(3),#po table.cpt td:nth-child(4){text-align:left}
+button.sup{font-size:13px;padding:5px 10px;border:1px solid #d9a0a0;border-radius:6px;background:#fff;color:#b71c1c;cursor:pointer}
+button.sup:hover{background:#ffeaea}
 .cptdroite{display:flex;align-items:center;justify-content:center;min-height:320px}
 .cptdroite.ouvert{display:block;min-height:0}
 .gros{font-size:20px;font-weight:700;padding:22px 34px;border:0;border-radius:12px;background:#1a73e8;color:#fff;cursor:pointer;box-shadow:0 2px 8px #0003}
@@ -524,12 +536,76 @@ $('ab-cpt').onclick=()=>{
   $('ouvrir-session').onclick=ouvrirSession;
 };
 
-$('ab-param').onclick=()=>{
-  const adr=Object.values(pts).filter(m=>!m.gps).length;
-  panneau(`<h3>Paramètres</h3>
-    <p class="note">Les paramètres s'ajouteront ici.</p>
-    <p class="note">Informations : ${adr} adresses chargées, ${items.length} logements saisis, ${Object.keys(pts).length-adr} point(s) hors adresse.</p>`);
+// ---- Paramètres : onglets Personnel et Équipes (APERÇU DE LA MISE EN PAGE : données fictives, rien n'est enregistré)
+const PARAM_EXEMPLE={
+  personnel:[['Durand','Alice'],['Durand B','Bruno'],['Moreau','Camille'],['Petit','Daniel'],['Roux','Emma'],['Lambert','Hugo'],['Garnier','Inès'],['Fabre','Jules'],['Henry','Léa'],['Giraud','Marc'],['Lopez','Nina'],['Muller','Oscar'],['Perrin','Paul'],['Renard','Rose']].map(([nom,prenom])=>({nom,prenom})),
+  equipes:[['Salan','Durand','Durand B'],['St just','Moreau','Petit'],['Naucelle Gare','Roux','Lambert'],['Castelmary','Dupuis L','Garnier'],['Tauriac de Naucelle','Fabre','Henry'],['Albagnac','Giraud',''],['Quins','',''],['Sauveterre','Lopez','Muller'],['Jouels','',''],['Crespin','Perrin',''],['Camjac','',''],['Cabanes','',''],['Bonnefon','','']].map(([nom,e1,e2],i)=>({t:i+1,nom,e1,e2}))
 };
+let PARAM=null,ONGLET='pers';
+const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+const tourneesDe=nom=>PARAM.equipes.filter(e=>e.e1===nom||e.e2===nom).map(e=>e.t);
+function msgParam(t,erreur){const m=$('p-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
+function optionsPers(sel,autre){
+  const liste=[...PARAM.personnel].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  const connus=new Set(liste.map(p=>p.nom));
+  return '<option value="">— aucun —</option>'
+    +(sel&&!connus.has(sel)?`<option value="${esc(sel)}" selected>⚠ ${esc(sel)} (absent de la liste)</option>`:'')
+    +liste.map(p=>`<option value="${esc(p.nom)}"${p.nom===sel?' selected':''}${autre&&p.nom===autre?' disabled':''}>${esc(p.nom)} — ${esc(p.prenom)}</option>`).join('');
+}
+function rendrePersonnel(){
+  const liste=[...PARAM.personnel].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  const sans=liste.filter(p=>!tourneesDe(p.nom).length).length;
+  $('po').innerHTML=`<div class="barre-ajout">
+      <input id="p-nom" placeholder="Nom (ex. Durand B)"><input id="p-prenom" placeholder="Prénom"><button class="bt" id="p-ajouter">➕ Ajouter</button>
+    </div>
+    <p id="p-msg" class="note"></p>
+    <table class="cpt"><tr><th>Nom</th><th>Prénom</th><th>Tournée</th><th></th></tr>
+    ${liste.map(p=>{const t=tourneesDe(p.nom);return `<tr><td style="text-align:left">${esc(p.nom)}</td><td style="text-align:left">${esc(p.prenom)}</td><td>${t.length?t.join(', '):'—'}</td><td><button class="sup" data-nom="${esc(p.nom)}">🗑 Supprimer</button></td></tr>`}).join('')}
+    </table>
+    <p class="note">${liste.length} personnes · ${sans} sans équipe (c'est normal).</p>`;
+  $('p-ajouter').onclick=()=>{
+    const nom=$('p-nom').value.trim(),prenom=$('p-prenom').value.trim();
+    if(!nom||!prenom){msgParam('Renseigne le nom et le prénom.',true);return}
+    if(PARAM.personnel.some(p=>norm(p.nom)===norm(nom))){msgParam('Ce nom existe déjà : ajoute l\'initiale du prénom (ex. « '+nom+' '+prenom[0].toUpperCase()+' »).',true);return}
+    PARAM.personnel.push({nom,prenom});rendrePersonnel();msgParam('✔ '+nom+' ajouté(e) (aperçu : non enregistré).');
+  };
+  $('po').querySelectorAll('button.sup').forEach(b=>b.onclick=()=>{
+    const nom=b.dataset.nom,t=tourneesDe(nom);
+    const q=t.length?`${nom} est équipier de la tournée ${t.join(', ')}. Sa place sera vidée. Supprimer ?`:`Supprimer ${nom} ?`;
+    if(!confirm(q))return;
+    PARAM.personnel=PARAM.personnel.filter(p=>p.nom!==nom);
+    PARAM.equipes.forEach(e=>{if(e.e1===nom)e.e1='';if(e.e2===nom)e.e2=''});
+    rendrePersonnel();msgParam(nom+' supprimé(e) (aperçu : non enregistré).');
+  });
+}
+function rendreEquipes(){
+  $('po').innerHTML=`<table class="cpt"><tr><th>Tournée</th><th>Nom de la tournée</th><th>Équipier 1</th><th>Équipier 2</th></tr>
+    ${PARAM.equipes.map((e,i)=>`<tr data-i="${i}"><td>${e.t}</td><td><input class="e-nom" value="${esc(e.nom)}"></td><td><select class="e-s1">${optionsPers(e.e1,e.e2)}</select></td><td><select class="e-s2">${optionsPers(e.e2,e.e1)}</select></td></tr>`).join('')}
+    </table>
+    <div class="boutons"><button type="button" class="rouge" id="e-annuler">Annuler les modifications</button><button type="button" class="vert" id="e-enreg" disabled>Enregistrer</button></div>
+    <p class="note">Une même personne ne peut pas être équipier 1 et équipier 2 : son nom est grisé dans l'autre liste. ⚠ signale un nom qui n'existe pas dans la liste du personnel.</p>`;
+  $('po').querySelectorAll('tr[data-i]').forEach(tr=>{
+    const e=PARAM.equipes[+tr.dataset.i];
+    tr.querySelector('.e-nom').oninput=ev=>{e.nom=ev.target.value};
+    tr.querySelector('.e-s1').onchange=ev=>{e.e1=ev.target.value;rendreEquipes()};
+    tr.querySelector('.e-s2').onchange=ev=>{e.e2=ev.target.value;rendreEquipes()};
+  });
+  $('e-annuler').onclick=()=>{PARAM=JSON.parse(JSON.stringify(PARAM_EXEMPLE));rendreEquipes()};
+}
+function ouvrirParametres(onglet){
+  if(!PARAM)PARAM=JSON.parse(JSON.stringify(PARAM_EXEMPLE));
+  ONGLET=onglet||ONGLET;
+  const adr=Object.values(pts).filter(m=>!m.gps).length;
+  panneau(`<div class="pbox"><h3 style="margin-top:0">Paramètres</h3>
+    <div class="onglets"><button data-o="pers" class="${ONGLET==='pers'?'on':''}">Personnel</button><button data-o="eq" class="${ONGLET==='eq'?'on':''}">Équipes</button></div>
+    <p class="apercu">Aperçu de la mise en page : données fictives, rien n'est enregistré dans le Sheet.</p>
+    <div id="po"></div>
+    <p class="note" style="margin-top:22px">Informations : ${adr} adresses chargées, ${items.length} logements saisis, ${Object.keys(pts).length-adr} point(s) hors adresse.</p></div>`,true);
+  $('apanel').querySelectorAll('.onglets button').forEach(b=>b.onclick=()=>ouvrirParametres(b.dataset.o));
+  ONGLET==='pers'?rendrePersonnel():rendreEquipes();
+}
+$('ab-param').onclick=()=>ouvrirParametres();
+
 
 
 $('rtab').onclick=e=>{
