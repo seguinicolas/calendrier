@@ -537,8 +537,7 @@ $('ab-cpt').onclick=()=>{
 };
 
 // ---- Paramètres : onglets Personnel et Équipes (lecture de la feuille Parametres ; l'enregistrement viendra à l'étape 3)
-let PARAM=null,ONGLET='pers';
-let PARAM_REF=null;
+let PARAM=null,PARAM_REF=null,ONGLET='pers';
 function chargerParametres(){
   return fetch(API+'?parametres=1').then(r=>r.json()).then(d=>{
     if(!d||!Array.isArray(d.personnel)||!Array.isArray(d.equipes))throw new Error('format');
@@ -546,47 +545,76 @@ function chargerParametres(){
   });
 }
 const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-const tourneesDe=nom=>PARAM.equipes.filter(e=>e.e1===nom||e.e2===nom).map(e=>e.t);
+const tourneesDe=code=>PARAM.equipes.filter(e=>e.e1===code||e.e2===code).map(e=>e.t);
+// Code d'une nouvelle personne : Nom + initiale du prénom ; 2 lettres (puis 3…) si déjà pris ; un numéro si nom ET prénom identiques
+function nouveauCode(nom,prenom){
+  const pris=new Set(PARAM.personnel.map(p=>norm(p.code)));
+  const N=nom.trim(),P=prenom.trim();
+  for(let k=1;k<=P.length;k++){
+    const c=N+' '+P.charAt(0).toUpperCase()+P.slice(1,k).toLowerCase();
+    if(!pris.has(norm(c)))return c;
+  }
+  let n=2;while(pris.has(norm(N+' '+P+' '+n)))n++;
+  return N+' '+P+' '+n;
+}
+// Anomalies dans les affectations : même personne sur plusieurs tournées, ou nom absent de la liste du personnel
+function conflits(){
+  const msg=[],vus={},connus=new Set(PARAM.personnel.map(p=>p.code));
+  PARAM.equipes.forEach(e=>[e.e1,e.e2].forEach(c=>{if(c)(vus[c]=vus[c]||[]).push(e.t)}));
+  Object.keys(vus).forEach(c=>{
+    const t=[...new Set(vus[c])];
+    if(!connus.has(c))msg.push(`« ${c} » (tournée ${t.join(', ')}) n'existe pas dans la liste du personnel.`);
+    if(vus[c].length>1)msg.push(t.length>1?`${c} est affecté(e) à plusieurs tournées : ${t.join(' et ')}.`:`${c} est équipier 1 et équipier 2 de la tournée ${t[0]}.`);
+  });
+  return msg;
+}
 function msgParam(t,erreur){const m=$('p-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
-function optionsPers(sel,autre){
-  const liste=[...PARAM.personnel].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
-  const connus=new Set(liste.map(p=>p.nom));
+// Liste déroulante : une personne déjà affectée à une AUTRE tournée est grisée ; l'autre équipier de la tournée aussi
+function optionsPers(sel,autre,t){
+  const liste=[...PARAM.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr'));
+  const connus=new Set(liste.map(p=>p.code));
   return '<option value="">— aucun —</option>'
     +(sel&&!connus.has(sel)?`<option value="${esc(sel)}" selected>⚠ ${esc(sel)} (absent de la liste)</option>`:'')
-    +liste.map(p=>`<option value="${esc(p.nom)}"${p.nom===sel?' selected':''}${autre&&p.nom===autre?' disabled':''}>${esc(p.nom)} — ${esc(p.prenom)}</option>`).join('');
+    +liste.map(p=>{
+      const ailleurs=tourneesDe(p.code).filter(x=>x!==t);
+      const off=(autre&&p.code===autre)||(ailleurs.length&&p.code!==sel);
+      return `<option value="${esc(p.code)}"${p.code===sel?' selected':''}${off?' disabled':''}>${esc(p.code)} — ${esc(p.prenom)}${ailleurs.length?` (tournée ${ailleurs.join(', ')})`:''}</option>`;
+    }).join('');
 }
 function rendrePersonnel(){
-  const liste=[...PARAM.personnel].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
-  const sans=liste.filter(p=>!tourneesDe(p.nom).length).length;
+  const liste=[...PARAM.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr'));
+  const sans=liste.filter(p=>!tourneesDe(p.code).length).length;
   $('po').innerHTML=`<div class="barre-ajout">
-      <input id="p-nom" placeholder="Nom (ex. Durand B)"><input id="p-prenom" placeholder="Prénom"><button class="bt" id="p-ajouter">➕ Ajouter</button>
+      <input id="p-nom" placeholder="Nom (ex. Durand)"><input id="p-prenom" placeholder="Prénom"><button class="bt" id="p-ajouter">➕ Ajouter</button>
     </div>
     <p id="p-msg" class="note"></p>
-    <table class="cpt"><tr><th>Nom</th><th>Prénom</th><th>Tournée</th><th></th></tr>
-    ${liste.map(p=>{const t=tourneesDe(p.nom);return `<tr><td style="text-align:left">${esc(p.nom)}</td><td style="text-align:left">${esc(p.prenom)}</td><td>${t.length?t.join(', '):'—'}</td><td><button class="sup" data-nom="${esc(p.nom)}">🗑 Supprimer</button></td></tr>`}).join('')}
+    <table class="cpt"><tr><th>Code</th><th>Nom</th><th>Prénom</th><th>Tournée</th><th></th></tr>
+    ${liste.map(p=>{const t=tourneesDe(p.code);return `<tr><td style="text-align:left"><b>${esc(p.code)}</b></td><td style="text-align:left">${esc(p.nom)}</td><td style="text-align:left">${esc(p.prenom)}</td><td>${t.length?t.join(', '):'—'}</td><td><button class="sup" data-code="${esc(p.code)}">🗑 Supprimer</button></td></tr>`}).join('')}
     </table>
-    <p class="note">${liste.length} personnes · ${sans} sans équipe (c'est normal).</p>`;
+    <p class="note">${liste.length} personnes · ${sans} sans équipe (c'est normal). Le code (nom + initiale du prénom) est créé automatiquement et ne change plus ensuite.</p>`;
   $('p-ajouter').onclick=()=>{
     const nom=$('p-nom').value.trim(),prenom=$('p-prenom').value.trim();
     if(!nom||!prenom){msgParam('Renseigne le nom et le prénom.',true);return}
-    if(PARAM.personnel.some(p=>norm(p.nom)===norm(nom))){msgParam('Ce nom existe déjà : ajoute l\'initiale du prénom (ex. « '+nom+' '+prenom[0].toUpperCase()+' »).',true);return}
-    PARAM.personnel.push({nom,prenom});rendrePersonnel();msgParam('✔ '+nom+' ajouté(e) (aperçu : non enregistré).');
+    const code=nouveauCode(nom,prenom);
+    PARAM.personnel.push({nom,prenom,code});rendrePersonnel();msgParam('✔ '+code+' ajouté(e) (aperçu : non enregistré).');
   };
   $('po').querySelectorAll('button.sup').forEach(b=>b.onclick=()=>{
-    const nom=b.dataset.nom,t=tourneesDe(nom);
-    const q=t.length?`${nom} est équipier de la tournée ${t.join(', ')}. Sa place sera vidée. Supprimer ?`:`Supprimer ${nom} ?`;
+    const code=b.dataset.code,t=tourneesDe(code);
+    const q=t.length?`${code} est équipier de la tournée ${t.join(', ')}. Sa place sera vidée. Supprimer ?`:`Supprimer ${code} ?`;
     if(!confirm(q))return;
-    PARAM.personnel=PARAM.personnel.filter(p=>p.nom!==nom);
-    PARAM.equipes.forEach(e=>{if(e.e1===nom)e.e1='';if(e.e2===nom)e.e2=''});
-    rendrePersonnel();msgParam(nom+' supprimé(e) (aperçu : non enregistré).');
+    PARAM.personnel=PARAM.personnel.filter(p=>p.code!==code);
+    PARAM.equipes.forEach(e=>{if(e.e1===code)e.e1='';if(e.e2===code)e.e2=''});
+    rendrePersonnel();msgParam(code+' supprimé(e) (aperçu : non enregistré).');
   });
 }
 function rendreEquipes(){
-  $('po').innerHTML=`<table class="cpt"><tr><th>Tournée</th><th>Nom de la tournée</th><th>Équipier 1</th><th>Équipier 2</th></tr>
-    ${PARAM.equipes.map((e,i)=>`<tr data-i="${i}"><td>${e.t}</td><td><input class="e-nom" value="${esc(e.nom)}"></td><td><select class="e-s1">${optionsPers(e.e1,e.e2)}</select></td><td><select class="e-s2">${optionsPers(e.e2,e.e1)}</select></td></tr>`).join('')}
+  const cf=conflits();
+  $('po').innerHTML=(cf.length?`<div style="background:#ffeaea;border:1px solid #d9a0a0;border-radius:6px;padding:8px 12px;margin:8px 0;color:#b71c1c;font-size:14px"><b>⚠ À corriger dans la feuille Parametres :</b><br>${cf.map(esc).join('<br>')}</div>`:'')
+    +`<table class="cpt"><tr><th>Tournée</th><th>Nom de la tournée</th><th>Équipier 1</th><th>Équipier 2</th></tr>
+    ${PARAM.equipes.map((e,i)=>`<tr data-i="${i}"><td>${e.t}</td><td><input class="e-nom" value="${esc(e.nom)}"></td><td><select class="e-s1">${optionsPers(e.e1,e.e2,e.t)}</select></td><td><select class="e-s2">${optionsPers(e.e2,e.e1,e.t)}</select></td></tr>`).join('')}
     </table>
     <div class="boutons"><button type="button" class="rouge" id="e-annuler">Annuler les modifications</button><button type="button" class="vert" id="e-enreg" disabled>Enregistrer</button></div>
-    <p class="note">Une même personne ne peut pas être équipier 1 et équipier 2 : son nom est grisé dans l'autre liste. ⚠ signale un nom qui n'existe pas dans la liste du personnel.</p>`;
+    <p class="note">Une personne ne peut être affectée qu'à une seule tournée, et pas deux fois dans la même : les noms déjà pris sont grisés avec leur numéro de tournée. ⚠ signale un nom qui n'existe pas dans la liste du personnel.</p>`;
   $('po').querySelectorAll('tr[data-i]').forEach(tr=>{
     const e=PARAM.equipes[+tr.dataset.i];
     tr.querySelector('.e-nom').oninput=ev=>{e.nom=ev.target.value};
