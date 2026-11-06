@@ -86,6 +86,10 @@ button.sup:hover{background:#ffeaea}
 .grille{display:grid;gap:10px 14px;margin-bottom:12px}
 .g5{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g6{grid-template-columns:minmax(100px,1fr) minmax(125px,1.2fr) minmax(60px,.6fr) repeat(3,minmax(90px,1fr));gap:10px 8px}
+.g6 label{font-size:12px}
+.g6 input,.g6 select{font-size:14px;padding:5px 4px}
+@media (max-width:700px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .coupures{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 14px;margin:4px 0 12px}
 .cp{display:grid;grid-template-columns:52px 14px 1fr 14px 1fr;align-items:center;gap:6px}
 .cp input{margin:0}.cp .v{font-weight:700}
@@ -447,12 +451,13 @@ function formulaireHtml(){
   const coupures=VAL.map((v,i)=>`<div class="cp"><span class="v">${String(v).replace('.',',')} €</span><span>×</span><input id="c${i}" type="number" min="0" step="1" inputmode="numeric"><span>=</span><input id="m${i}" class="gris" readonly tabindex="-1"></div>`).join('');
   return `<form class="cptform" id="cf" autocomplete="off" onsubmit="return false">
     <h4>Saisie du comptage</h4>
-    <div class="grille g5">
+    <div class="grille g6">
       <label>Date<input id="f-date" class="gris" readonly value="${new Date().toLocaleDateString('fr-FR')}"></label>
       <label>Date tournée<input id="f-dt" type="date"></label>
       <label>N° tournée<select id="f-t"><option value="">—</option>${opts}</select></label>
       <label>Équipier 1<select id="f-e1"><option value="">—</option></select></label>
       <label>Équipier 2<select id="f-e2"><option value="">—</option></select></label>
+      <label>Équipier 3<select id="f-e3"><option value="">—</option></select></label>
     </div>
     <div class="grille g4">
       <label>Campagne / Ville<select id="f-z"><option value="">—</option><option value="campagne">Campagne</option><option value="ville">Ville</option></select></label>
@@ -489,6 +494,8 @@ function resetForm(){
 
 function validerForm(){
   const c=calcForm(),dt=$('f-dt').value,t=$('f-t').value,z=$('f-z').value;
+  const eq=EQ_IDS.map(i=>$(i).value).filter(Boolean);
+  if(new Set(eq).size<eq.length){msgForm("Un équipier ne peut être choisi qu'une seule fois.",true);return}
   if(!dt||!t||!z){msgForm('Renseigne la date de la tournée, le n° de tournée et campagne / ville.',true);return}
   if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
   msgForm('Aperçu : rien n\'est enregistré pour l\'instant. Total calculé : '+fmt(c.tot)+(c.nb>0?' · moyenne '+fmt(c.tot/c.nb):''));
@@ -499,29 +506,41 @@ function remplirDepuisLigne(tr){
 }
 // Équipiers par défaut : ceux de la tournée dans la feuille Parametres (restent modifiables à la main)
 const listeEquipiers=()=>'<option value="">—</option>'+[...PARAM_REF.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr')).map(p=>`<option value="${esc(p.code)}">${esc(p.code)}</option>`).join('');
+const EQ_IDS=['f-e1','f-e2','f-e3'];
+// Une personne choisie dans une case est grisée dans les deux autres
+function griserEquipiers(){
+  EQ_IDS.forEach(id=>{
+    const s=$(id);if(!s)return;
+    const autres=EQ_IDS.filter(x=>x!==id).map(x=>$(x)&&$(x).value).filter(Boolean);
+    [...s.options].forEach(o=>{o.disabled=o.value!==''&&autres.includes(o.value)});
+  });
+}
 function fixerEquipier(id,val){
   const s=$(id);if(!s)return;
   if(val&&![...s.options].some(o=>o.value===val))s.add(new Option(val,val));
   s.value=val||'';
+  griserEquipiers();
 }
 // Remplit les listes déroulantes avec le personnel de la feuille Parametres (en gardant la valeur choisie)
 async function prepEquipiers(){
   try{if(!PARAM_REF)await chargerParametres()}catch(e){return false}
-  ['f-e1','f-e2'].forEach(id=>{const s=$(id);if(!s)return;const v=s.value;s.innerHTML=listeEquipiers();fixerEquipier(id,v)});
+  EQ_IDS.forEach(id=>{const s=$(id);if(!s)return;const v=s.value;s.innerHTML=listeEquipiers();fixerEquipier(id,v)});
   return true;
 }
 async function remplirEquipiers(t){
   const num=Number(t);
-  if(!num){fixerEquipier('f-e1','');fixerEquipier('f-e2','');return}
+  if(!num){EQ_IDS.forEach(id=>fixerEquipier(id,''));return}
   if(!await prepEquipiers())return;
   const q=PARAM_REF.equipes.find(x=>x.t===num);
   if(!$('f-e1')||$('f-t').value!==String(num))return;   // le formulaire a changé entre-temps
-  fixerEquipier('f-e1',q?q.e1:'');fixerEquipier('f-e2',q?q.e2:'');
+  EQ_IDS.forEach(id=>fixerEquipier(id,''));
+  fixerEquipier('f-e1',q?q.e1:'');fixerEquipier('f-e2',q?q.e2:'');   // l'équipier 3 reste libre
 }
 function ouvrirSession(){
   const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
   $('cf').addEventListener('input',calcForm);
   prepEquipiers();
+  EQ_IDS.forEach(id=>$(id).addEventListener('change',griserEquipiers));
   $('f-annuler').onclick=fermerSession;
   $('f-valider').onclick=validerForm;
   const sel=document.querySelector('table.cpt tr.sel');if(sel)remplirDepuisLigne(sel);
