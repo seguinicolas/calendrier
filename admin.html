@@ -126,7 +126,6 @@ table.cpt input[type=checkbox]{width:20px;height:20px}
   <div class="pied">Administration · menu v1</div>
 </nav>
 <div id="admin"><div class="in" style="padding-top:76px">
-  <p id="etat" class="note">Chargement des données…</p>
   <div id="apanel"><p class="note">Choisis une rubrique dans le menu ☰ (en haut à droite).</p></div>
 </div></div>
 <select id="eqsel"><option value="">Toutes les équipes</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select>
@@ -402,10 +401,7 @@ function exporterCouche(){
 }
 
 // ---- Menu d'administration
-function majEtat(){
-  const adr=Object.values(pts).filter(m=>!m.gps).length;
-  $('etat').textContent=adr?`${adr} adresses · ${items.length} logements saisis · données à jour`:'Chargement des données…';
-}
+function majEtat(){}   // l'affichage du nombre d'adresses / logements a été retiré
 function panneau(html,large){$('apanel').innerHTML=html;$('admin').scrollTop=0;$('admin').querySelector('.in').classList.toggle('large',!!large)}
 // ---- Menu hamburger
 function ouvrirMenu(o){$('drawer').classList.toggle('open',o);$('veil').classList.toggle('open',o);$('burger').setAttribute('aria-expanded',String(o))}
@@ -610,11 +606,11 @@ async function actualiserComptage(){
   if($('cpt-actu'))$('cpt-actu').disabled=false;
 }
 $('ab-cpt').onclick=()=>{
-  panneau(`<div class="cptwrap">
+  panneau(`<h3 style="margin:0 0 8px">Comptage</h3>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="bt" id="cpt-actu">🔄 Actualiser</button><span id="cpt-maj" class="note"></span></div>
+    <p id="cpt-etat" class="note" style="margin:0 0 8px">Chargement…</p>
+    <div class="cptwrap">
     <div class="cptleft">
-      <h3>Comptage</h3>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button class="bt" id="cpt-actu">🔄 Actualiser</button><span id="cpt-maj" class="note"></span></div>
-      <p id="cpt-etat" class="note" style="margin:0 0 8px">Chargement…</p>
       <div id="cpt-table"></div>
       <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille. « Hors secteur » : dons hors de tes secteurs tracés.</p>
     </div>
