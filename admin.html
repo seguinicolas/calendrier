@@ -475,7 +475,7 @@ function formulaireHtml(){
     </div>
     <div class="boutons"><button type="button" id="f-annuler" class="rouge">Annuler</button><button type="button" id="f-valider" class="vert">Valider</button></div>
     <p id="f-msg" class="note"></p>
-    <p class="note">Aperçu de la mise en page : Valider calcule mais n'enregistre rien pour l'instant. Annuler ferme la session.</p>
+    <p class="note">Valider enregistre le comptage dans la feuille Comptage_poche et vide le formulaire. Annuler ferme la session.</p>
   </form>`;
 }
 function calcForm(){
@@ -492,13 +492,30 @@ function resetForm(){
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
 }
 
-function validerForm(){
+let COMPTAGE_ID='';
+async function validerForm(){
   const c=calcForm(),dt=$('f-dt').value,t=$('f-t').value,z=$('f-z').value;
-  const eq=EQ_IDS.map(i=>$(i).value).filter(Boolean);
-  if(new Set(eq).size<eq.length){msgForm("Un équipier ne peut être choisi qu'une seule fois.",true);return}
+  const eq=EQ_IDS.map(i=>$(i).value),nonVides=eq.filter(Boolean);
+  if(new Set(nonVides).size<nonVides.length){msgForm("Un équipier ne peut être choisi qu'une seule fois.",true);return}
   if(!dt||!t||!z){msgForm('Renseigne la date de la tournée, le n° de tournée et campagne / ville.',true);return}
   if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
-  msgForm('Aperçu : rien n\'est enregistré pour l\'instant. Total calculé : '+fmt(c.tot)+(c.nb>0?' · moyenne '+fmt(c.tot/c.nb):''));
+  if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet. Total calculé : "+fmt(c.tot),true);return}
+  if(!COMPTAGE_ID)COMPTAGE_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  const envoi={action:'comptage',id:COMPTAGE_ID,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
+    coupures:VAL.map((v,i)=>Math.max(0,Math.floor(Number($('c'+i).value)||0))),
+    chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Number($('f-mon').value)||0};
+  $('f-valider').disabled=true;msgForm('Enregistrement en cours…');
+  let d=null;
+  for(let essai=0;essai<2&&!d;essai++){
+    try{const x=await fetch(API,{method:'POST',body:JSON.stringify(envoi)});d=await x.json()}catch(e){d=null}
+  }
+  if(!$('f-valider'))return;
+  $('f-valider').disabled=false;
+  if(d&&d.ok){
+    COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
+    msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+').');return;
+  }
+  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):"Pas de réponse du Sheet : vérifie la feuille Comptage_poche avant de recommencer (un nouvel essai ne crée pas de doublon).",true);
 }
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
