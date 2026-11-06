@@ -119,6 +119,10 @@ table.cpt input[type=checkbox]{width:20px;height:20px}
 #recap-contenu .rbar{margin-bottom:12px}
 #recap-contenu select{font-size:16px;padding:6px 8px}
 #rtab{background:#fff;padding:12px;border-radius:8px}
+.indiv2{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.indiv2 table{width:auto;min-width:280px;flex:1 1 280px;max-width:420px}
+table.cpt.ind td:first-child{text-align:left}
+table.cpt.ind td:nth-child(n+2){text-align:right}
 </style>
 </head>
 <body>
@@ -385,9 +389,32 @@ function afficherOngletRecap(o){
     $('rsel').onchange=()=>{ouverts.clear();rendreRecap()};
     $('rtab').onclick=clicRecap;
     rendreRecap();
+  }else if(o==='indiv'){
+    z.innerHTML='<div id="indiv"><p class="note">Chargement…</p></div>';
+    rendreIndiv();
   }else{
-    z.innerHTML='<p class="note">'+(o==='equipe'?'Récapitulatif par équipe':'Récapitulatif individuel')+' : à définir.</p>';
+    z.innerHTML='<p class="note">Récapitulatif par équipe : à définir.</p>';
   }
+}
+// Récapitulatif individuel : reproduit la feuille Recap_pers (Nom · Fait · Reste à faire)
+async function rendreIndiv(){
+  let rows=null;
+  try{
+    const d=await fetch(API+'?recappers=1&t='+Date.now()).then(r=>r.json());
+    if(d&&Array.isArray(d.rows)&&d.rows.length&&'fait' in d.rows[0])rows=d.rows;
+  }catch(e){}
+  const branche=!!rows;
+  if(!rows){ // lecture de la feuille pas encore branchée : on affiche la mise en page avec le personnel de Parametres
+    try{if(!PARAM_REF)await chargerParametres()}catch(e){}
+    rows=PARAM_REF?[...PARAM_REF.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr')).map(p=>({nom:p.code,fait:null,reste:null})):[];
+  }
+  if(!$('indiv'))return; // on a changé d'onglet entre-temps
+  rows=rows.filter(r=>String(r.nom||'').trim()!=='');
+  const nb=Math.ceil(rows.length/2),cell=v=>v===null||v===undefined?'—':v;
+  const bloc=L=>`<table class="cpt ind"><tr><th>Nom</th><th>Fait</th><th>Reste à faire</th></tr>${L.map(r=>`<tr><td>${esc(r.nom)}</td><td>${cell(r.fait)}</td><td>${cell(r.reste)}</td></tr>`).join('')}</table>`;
+  $('indiv').innerHTML='<h4 style="margin:4px 0 10px">Décompte des calendriers par personne</h4>'
+    +'<div class="indiv2">'+bloc(rows.slice(0,nb))+bloc(rows.slice(nb))+'</div>'
+    +(branche?'':'<p class="note">Mise en page seule pour l\'instant : les chiffres « Fait » et « Reste à faire » apparaîtront quand la lecture de la feuille Recap_pers sera branchée.</p>');
 }
 function recap(){
   ouverts.clear();
