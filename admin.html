@@ -451,8 +451,8 @@ function formulaireHtml(){
       <label>Date<input id="f-date" class="gris" readonly value="${new Date().toLocaleDateString('fr-FR')}"></label>
       <label>Date tournée<input id="f-dt" type="date"></label>
       <label>N° tournée<select id="f-t"><option value="">—</option>${opts}</select></label>
-      <label>Équipier 1<input id="f-e1"></label>
-      <label>Équipier 2<input id="f-e2"></label>
+      <label>Équipier 1<select id="f-e1"><option value="">—</option></select></label>
+      <label>Équipier 2<select id="f-e2"><option value="">—</option></select></label>
     </div>
     <div class="grille g4">
       <label>Campagne / Ville<select id="f-z"><option value="">—</option><option value="campagne">Campagne</option><option value="ville">Ville</option></select></label>
@@ -498,17 +498,30 @@ function remplirDepuisLigne(tr){
   remplirEquipiers(tr.dataset.t);
 }
 // Équipiers par défaut : ceux de la tournée dans la feuille Parametres (restent modifiables à la main)
+const listeEquipiers=()=>'<option value="">—</option>'+[...PARAM_REF.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr')).map(p=>`<option value="${esc(p.code)}">${esc(p.code)}</option>`).join('');
+function fixerEquipier(id,val){
+  const s=$(id);if(!s)return;
+  if(val&&![...s.options].some(o=>o.value===val))s.add(new Option(val,val));
+  s.value=val||'';
+}
+// Remplit les listes déroulantes avec le personnel de la feuille Parametres (en gardant la valeur choisie)
+async function prepEquipiers(){
+  try{if(!PARAM_REF)await chargerParametres()}catch(e){return false}
+  ['f-e1','f-e2'].forEach(id=>{const s=$(id);if(!s)return;const v=s.value;s.innerHTML=listeEquipiers();fixerEquipier(id,v)});
+  return true;
+}
 async function remplirEquipiers(t){
   const num=Number(t);
-  if(!num){$('f-e1').value='';$('f-e2').value='';return}
-  try{if(!PARAM_REF)await chargerParametres()}catch(e){return}
+  if(!num){fixerEquipier('f-e1','');fixerEquipier('f-e2','');return}
+  if(!await prepEquipiers())return;
   const q=PARAM_REF.equipes.find(x=>x.t===num);
   if(!$('f-e1')||$('f-t').value!==String(num))return;   // le formulaire a changé entre-temps
-  $('f-e1').value=q?q.e1:'';$('f-e2').value=q?q.e2:'';
+  fixerEquipier('f-e1',q?q.e1:'');fixerEquipier('f-e2',q?q.e2:'');
 }
 function ouvrirSession(){
   const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
   $('cf').addEventListener('input',calcForm);
+  prepEquipiers();
   $('f-annuler').onclick=fermerSession;
   $('f-valider').onclick=validerForm;
   const sel=document.querySelector('table.cpt tr.sel');if(sel)remplirDepuisLigne(sel);
