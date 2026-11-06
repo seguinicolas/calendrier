@@ -495,6 +495,16 @@ function validerForm(){
 }
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
+  remplirEquipiers(tr.dataset.t);
+}
+// Équipiers par défaut : ceux de la tournée dans la feuille Parametres (restent modifiables à la main)
+async function remplirEquipiers(t){
+  const num=Number(t);
+  if(!num){$('f-e1').value='';$('f-e2').value='';return}
+  try{if(!PARAM_REF)await chargerParametres()}catch(e){return}
+  const q=PARAM_REF.equipes.find(x=>x.t===num);
+  if(!$('f-e1')||$('f-t').value!==String(num))return;   // le formulaire a changé entre-temps
+  $('f-e1').value=q?q.e1:'';$('f-e2').value=q?q.e2:'';
 }
 function ouvrirSession(){
   const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
