@@ -111,6 +111,14 @@ table.cpt input[type=checkbox]{width:20px;height:20px}
 .mi:hover,.mi:focus{background:#f1f4fa}
 .mi.on{background:#e8eefb;font-weight:700}
 #drawer .pied{margin-top:auto;padding:12px 18px;color:#777;font-size:12px}
+.onglets{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 14px;border-bottom:2px solid #cfd6e4}
+.onglets button{font-size:15px;padding:10px 14px;border:0;border-radius:8px 8px 0 0;background:#e8eefb;color:#1a2b4c;cursor:pointer;font-weight:600}
+.onglets button:hover{background:#dbe7ff}
+.onglets button.on{background:#1a2b4c;color:#fff}
+#recap-contenu{max-width:900px}
+#recap-contenu .rbar{margin-bottom:12px}
+#recap-contenu select{font-size:16px;padding:6px 8px}
+#rtab{background:#fff;padding:12px;border-radius:8px}
 </style>
 </head>
 <body>
@@ -132,10 +140,6 @@ table.cpt input[type=checkbox]{width:20px;height:20px}
 <button id="manuel">➕ Point</button><div id="zoomhint">Zoomez pour afficher les points</div>
 <div id="aide">Touchez la carte pour placer le point</div>
 <button id="recapbtn">📊 Récap</button>
-<div id="recap" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
-  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><select id="rsel" style="font-size:16px;padding:6px 8px;max-width:65%"><option value="">Toutes les tournées</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
-  <div id="rtab" style="padding:12px"></div>
-</div>
 <div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button></div>
 <div id="bar">
   <button id="don">💶 Don reçu</button>
@@ -373,13 +377,31 @@ function rendreRecap(){
   }
   $('rtab').innerHTML=h;
 }
+function afficherOngletRecap(o){
+  document.querySelectorAll('#onglets-recap button').forEach(b=>b.classList.toggle('on',b.dataset.o===o));
+  const z=$('recap-contenu');
+  if(o==='app'){
+    z.innerHTML='<div class="rbar"><select id="rsel"><option value="">Toutes les tournées</option>'+[...Array(13)].map((_,i)=>`<option value="${i+1}">Équipe ${i+1}</option>`).join('')+'</select></div><div id="rtab"></div>';
+    $('rsel').onchange=()=>{ouverts.clear();rendreRecap()};
+    $('rtab').onclick=clicRecap;
+    rendreRecap();
+  }else{
+    z.innerHTML='<p class="note">'+(o==='equipe'?'Récapitulatif par équipe':'Récapitulatif individuel')+' : à définir.</p>';
+  }
+}
 function recap(){
   ouverts.clear();
-  $('rsel').value='';
-  rendreRecap();$('recap').style.display='block';
-  chargerObj().then(()=>{if($('recap').style.display==='block')rendreRecap()});
+  panneau(`<h3>Récapitulatif</h3>
+    <div id="onglets-recap" class="onglets">
+      <button data-o="app">Récapitulatif de l'application</button>
+      <button data-o="equipe">Récapitulatif par équipe</button>
+      <button data-o="indiv">Récapitulatif individuel</button>
+    </div>
+    <div id="recap-contenu"></div>`,true);
+  document.querySelectorAll('#onglets-recap button').forEach(b=>b.onclick=()=>afficherOngletRecap(b.dataset.o));
+  afficherOngletRecap('app');
+  chargerObj().then(()=>{if($('rtab')&&$('rsel'))rendreRecap()});
 }
-$('rsel').onchange=()=>{ouverts.clear();rendreRecap()};
 
 // Export : une couche (GeoJSON) avec tous les points d'adresse et leur statut — sans noms ni montants
 function exporterCouche(){
@@ -759,14 +781,13 @@ $('ab-param').onclick=()=>ouvrirParametres();
 
 
 
-$('rtab').onclick=e=>{
+const clicRecap=e=>{
   const tr=e.target.closest&&e.target.closest('tr[data-j]');if(!tr)return;
   const det=tr.nextElementSibling,k=tr.dataset.j,ouvre=det.style.display==='none';
   det.style.display=ouvre?'':'none';ouvre?ouverts.add(k):ouverts.delete(k);
   tr.querySelector('.fl').textContent=ouvre?'▾':'▸';
 };
 $('recapbtn').onclick=recap;
-$('rclose').onclick=()=>$('recap').style.display='none';
 
 // Point manuel (placé sur la carte sans être sur place)
 let placement=false;
