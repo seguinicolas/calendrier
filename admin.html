@@ -111,10 +111,7 @@ table.cpt input[type=checkbox]{width:20px;height:20px}
 .mi:hover,.mi:focus{background:#f1f4fa}
 .mi.on{background:#e8eefb;font-weight:700}
 #drawer .pied{margin-top:auto;padding:12px 18px;color:#777;font-size:12px}
-.onglets{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 14px;border-bottom:2px solid #cfd6e4}
-.onglets button{font-size:15px;padding:10px 14px;border:0;border-radius:8px 8px 0 0;background:#e8eefb;color:#1a2b4c;cursor:pointer;font-weight:600}
-.onglets button:hover{background:#dbe7ff}
-.onglets button.on{background:#1a2b4c;color:#fff}
+#onglets-recap{flex-wrap:wrap;margin:8px 0 14px}
 #recap-contenu{max-width:1100px}
 #recap-contenu .rbar{margin-bottom:12px}
 #recap-contenu select{font-size:16px;padding:6px 8px}
@@ -335,8 +332,8 @@ $('pclose').onclick=()=>$('panel').style.display='none';
 // Charger l'historique
 // Récapitulatif ville / campagne
 const fmt=n=>n.toFixed(2).replace('.00','').replace('.',',')+' €';
-let OBJ=null; // calendriers de l'année dernière (feuille calendrier2025)
-function chargerObj(){return fetch(API+'?objectifs=1').then(r=>r.json()).then(d=>{if(d&&Array.isArray(d.objectifs))OBJ=d.objectifs}).catch(()=>{})}
+let OBJ=null,OBJ_ANNEE=''; // calendriers de l'année à comparer (feuille Historique)
+function chargerObj(){return fetch(API+'?objectifs=1').then(r=>r.json()).then(d=>{if(d&&Array.isArray(d.objectifs)){OBJ=d.objectifs;OBJ_ANNEE=d.annee||''}}).catch(()=>{})}
 const ouverts=new Set(); // jours dont le détail est ouvert
 const jourLocal=dt=>{const d=new Date(dt);return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 function rendreRecap(){
@@ -363,7 +360,7 @@ function rendreRecap(){
     +ligne('Calendriers réalisés',V.real,C.real,String)
     +(e?`<tr><td>Moyenne par calendrier</td><td>${moy(V.somme,V.real)}</td><td>${moy(C.somme,C.real)}</td><td>${moy(V.somme+C.somme,V.real+C.real)}</td></tr>`:'')
     +(OBJ?ligne('Écart (cette année − an dernier)',V.real-O.ville,C.real-O.campagne,ecart):'<tr><td>Écart (cette année − an dernier)</td>'+tiret+tiret+tiret+'</tr>')
-    +'</table><p style="font-size:13px;color:#555">Écart = réalisés cette année − calendriers de l\'an dernier (feuille calendrier2025) ; négatif (rouge) = en retard sur l\'an dernier, positif (vert) = en avance. Réalisés = logements avec don, dans un secteur tracé.</p>';
+    +'</table><p style="font-size:13px;color:#555">Écart = réalisés cette année − calendriers de l\'an dernier (feuille Historique'+(OBJ_ANNEE?', année '+OBJ_ANNEE:'')+') ; négatif (rouge) = en retard sur l\'an dernier, positif (vert) = en avance. Réalisés = logements avec don, dans un secteur tracé.</p>';
   if(!e){
     const dif=(a,b)=>OBJ?ecart(a-b):'—';
     h+='<h4>Détail par tournée</h4><div style="overflow-x:auto"><table class="t2"><tr><th>Tournée</th><th>Campagne</th><th>Dif campagne</th><th>Ville</th><th>Dif ville</th><th>Total</th><th>Dif total</th></tr>'
@@ -713,17 +710,18 @@ function lireParam(){
 }
 function chargerParametres(){return lireParam().then(d=>{PARAM_REF=d;PARAM=clone(d)})}
 const modifie=()=>JSON.stringify(PARAM)!==JSON.stringify(PARAM_REF);
+const rendreOnglet=()=>ONGLET==='pers'?rendrePersonnel():ONGLET==='div'?rendreDivers():rendreEquipes();
 function msgEtat(t,erreur){const m=$('p-etat');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
 function majBarre(){
   const b=$('p-bar');if(!b)return;
   const m=modifie(),ok=m&&!conflits().length;
   b.innerHTML=`<div class="boutons"><button type="button" class="rouge" id="p-annuler"${m?'':' disabled'}>Annuler les modifications</button><button type="button" class="vert" id="p-enreg"${ok?'':' disabled'}>Enregistrer</button></div><p id="p-etat" class="note">${m?'Modifications non enregistrées.':''}</p>`;
-  $('p-annuler').onclick=()=>{PARAM=clone(PARAM_REF);ONGLET==='pers'?rendrePersonnel():rendreEquipes()};
+  $('p-annuler').onclick=()=>{PARAM=clone(PARAM_REF);rendreOnglet()};
   $('p-enreg').onclick=enregistrerParam;
 }
 async function enregistrerParam(){
   if(TEST){msgEtat("Mode test : rien n'est envoyé au Sheet.",true);return}
-  const envoi={personnel:PARAM.personnel.map(p=>({nom:p.nom.trim(),prenom:p.prenom.trim(),code:p.code})),equipes:PARAM.equipes.map(e=>({t:e.t,nom:e.nom.trim(),e1:e.e1,e2:e.e2}))};
+  const envoi={personnel:PARAM.personnel.map(p=>({nom:p.nom.trim(),prenom:p.prenom.trim(),code:p.code})),equipes:PARAM.equipes.map(e=>({t:e.t,nom:e.nom.trim(),e1:e.e1,e2:e.e2})),annee:PARAM.annee||''};
   $('p-enreg').disabled=true;$('p-annuler').disabled=true;msgEtat('Enregistrement en cours…');
   let d=null;
   try{const r=await fetch(API,{method:'POST',body:JSON.stringify({action:'parametres',...envoi})});d=await r.json()}catch(e){d=null}
@@ -732,10 +730,10 @@ async function enregistrerParam(){
   }
   let neuf;
   try{neuf=await lireParam()}catch(e){majBarre();msgEtat("Envoyé, mais impossible de relire la feuille pour vérifier. Recharge la page.",true);return}
-  const pareil=JSON.stringify(neuf.equipes)===JSON.stringify(envoi.equipes)&&JSON.stringify(neuf.personnel.map(p=>p.code))===JSON.stringify(envoi.personnel.map(p=>p.code));
+  const pareil=JSON.stringify(neuf.equipes)===JSON.stringify(envoi.equipes)&&JSON.stringify(neuf.personnel.map(p=>p.code))===JSON.stringify(envoi.personnel.map(p=>p.code))&&(neuf.annee||'')===(envoi.annee||'');
   if((d&&d.ok)||pareil){
     PARAM_REF=neuf;PARAM=clone(neuf);
-    ONGLET==='pers'?rendrePersonnel():rendreEquipes();
+    rendreOnglet();
     msgEtat('✔ Enregistré dans le Google Sheet.');return;
   }
   majBarre();msgEtat("L'enregistrement n'a pas abouti. Rien n'a été modifié.",true);
@@ -803,6 +801,14 @@ function rendrePersonnel(){majBarre();
     rendrePersonnel();msgParam(code+' supprimé(e) : pense à Enregistrer.');
   });
 }
+function rendreDivers(){majBarre();
+  const an=PARAM.annees||[],cur=PARAM.annee||'';
+  $('po').innerHTML=`<table class="cpt"><tr><th>Réglage</th><th>Valeur</th></tr>
+    <tr><td style="text-align:left">Année à comparer<br><span class="note">Dans le récapitulatif, l'écart = réalisés cette année − calendriers de l'année choisie (feuille Historique).</span></td>
+    <td><select id="d-annee">${an.length?an.map(a=>`<option value="${esc(a)}"${a===cur?' selected':''}>${esc(a)}</option>`).join(''):'<option value="">Aucune année trouvée</option>'}</select></td></tr></table>
+    <p class="note">Les années proposées sont celles des colonnes de la feuille Historique (2025_C, 2025_V, 2026_C…).</p>`;
+  $('d-annee').onchange=ev=>{PARAM.annee=ev.target.value;majBarre()};
+}
 function rendreEquipes(){majBarre();
   const cf=conflits();
   $('po').innerHTML=(cf.length?`<div style="background:#ffeaea;border:1px solid #d9a0a0;border-radius:6px;padding:8px 12px;margin:8px 0;color:#b71c1c;font-size:14px"><b>⚠ À corriger avant de pouvoir enregistrer :</b><br>${cf.map(esc).join('<br>')}</div>`:'')
@@ -829,12 +835,12 @@ function ouvrirParametres(onglet){
   ONGLET=onglet||ONGLET;
   const adr=Object.values(pts).filter(m=>!m.gps).length;
   panneau(`<div class="pbox"><h3 style="margin-top:0">Paramètres</h3>
-    <div class="onglets"><button data-o="pers" class="${ONGLET==='pers'?'on':''}">Personnel</button><button data-o="eq" class="${ONGLET==='eq'?'on':''}">Équipes</button></div>
+    <div class="onglets"><button data-o="pers" class="${ONGLET==='pers'?'on':''}">Personnel</button><button data-o="eq" class="${ONGLET==='eq'?'on':''}">Équipes</button><button data-o="div" class="${ONGLET==='div'?'on':''}">Divers</button></div>
     <p class="apercu">Données réelles de la feuille Parametres. Les modifications ne sont envoyées au Google Sheet qu'en appuyant sur Enregistrer.</p>
     <div id="po"></div><div id="p-bar"></div>
     <p class="note" style="margin-top:22px">Informations : ${adr} adresses chargées, ${items.length} logements saisis, ${Object.keys(pts).length-adr} point(s) hors adresse.</p></div>`,true);
   $('apanel').querySelectorAll('.onglets button').forEach(b=>b.onclick=()=>ouvrirParametres(b.dataset.o));
-  ONGLET==='pers'?rendrePersonnel():rendreEquipes();
+  rendreOnglet();
 }
 $('ab-param').onclick=()=>ouvrirParametres();
 
