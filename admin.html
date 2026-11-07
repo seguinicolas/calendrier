@@ -61,7 +61,7 @@ table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table
 .cptwrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:start}
 .cptleft h3{margin:0 0 8px}
 .cptleft{max-width:640px}
-#cpt-table{max-height:calc(100vh - 262px);min-height:200px;overflow:auto}
+#cpt-table{max-height:calc(100vh - 294px);min-height:200px;overflow:auto}
 table.cpt tr.lg.ok td{background:#cdeccd}
 table.cpt tr.lg.ok:hover td{background:#bfe5bf}
 table.cpt tr.sel td{box-shadow:inset 0 2px 0 #1a73e8,inset 0 -2px 0 #1a73e8}
@@ -694,7 +694,7 @@ async function actualiserComptage(){
   if($('cpt-actu'))$('cpt-actu').disabled=false;
 }
 $('ab-cpt').onclick=()=>{
-  panneau(`<p id="cpt-etat" class="note" style="margin:40px 0 8px">Chargement…</p>
+  panneau(`<p id="cpt-etat" class="note" style="margin:72px 0 8px">Chargement…</p>
     <div class="cptwrap">
     <div class="cptleft">
       <div id="cpt-table"></div>
