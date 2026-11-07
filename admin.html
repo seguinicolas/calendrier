@@ -718,7 +718,8 @@ $('ab-cpt').onclick=()=>{
   </div>`,true);
   $('ouvrir-session').onclick=ouvrirSession;
   $('cpt-actu').onclick=actualiserComptage;
-  lireRecap().then(d=>{tableComptage(d);etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
+  if(TEST)lireRecap().then(d=>{tableComptage(d);etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
+  else actualiserComptage();   // le tableau est recalculé dans le Sheet dès l'ouverture du Comptage
 };
 
 // ---- Paramètres : onglets Personnel et Équipes (lecture et enregistrement dans la feuille Parametres)
