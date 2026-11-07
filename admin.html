@@ -61,7 +61,7 @@ table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table
 .cptwrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:start}
 .cptleft h3{margin:0 0 8px}
 .cptleft{max-width:640px}
-#cpt-table{max-height:calc(100vh - 294px);min-height:200px;overflow:auto}
+#cpt-table{max-height:calc(100vh - 224px);min-height:200px;overflow:auto}
 table.cpt tr.lg.ok td{background:#cdeccd}
 table.cpt tr.lg.ok:hover td{background:#bfe5bf}
 table.cpt tr.sel td{box-shadow:inset 0 2px 0 #1a73e8,inset 0 -2px 0 #1a73e8}
@@ -86,19 +86,22 @@ button.sup:hover{background:#ffeaea}
 .cptdroite.ouvert{display:block;min-height:0}
 .gros{font-size:20px;font-weight:700;padding:22px 34px;border:0;border-radius:12px;background:#1a73e8;color:#fff;cursor:pointer;box-shadow:0 2px 8px #0003}
 .gros:hover,.gros:focus{background:#1558b0}
-.cptform{background:#e3f6ff;border:1px solid #b7dff3;border-radius:10px;padding:12px 14px}
+.cptform{background:#e3f6ff;border:1px solid #b7dff3;border-radius:10px;padding:6px 14px}
 .cptform h4{margin:0 0 10px;font-size:16px}
+.cptform p{margin:2px 0 0}
+.cptform .boutons{margin:4px 0}
+.cptform .boutons button{padding:6px}
 .cptform label{display:block;font-size:13px;color:#33475b}
-.cptform input,.cptform select{display:block;width:100%;box-sizing:border-box;margin-top:3px;padding:7px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
+.cptform input,.cptform select{display:block;width:100%;box-sizing:border-box;margin-top:1px;padding:4px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
 .cptform input.gris{background:#d9dde2;font-weight:700}
-.grille{display:grid;gap:10px 14px;margin-bottom:12px}
+.grille{display:grid;gap:5px 14px;margin-bottom:6px}
 .g5{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-.g6{grid-template-columns:minmax(100px,1fr) minmax(125px,1.2fr) minmax(60px,.6fr) repeat(3,minmax(90px,1fr));gap:10px 8px}
+.g6{grid-template-columns:minmax(100px,1fr) minmax(125px,1.2fr) minmax(60px,.6fr) repeat(3,minmax(90px,1fr));gap:5px 8px}
 .g6 label{font-size:12px}
-.g6 input,.g6 select{font-size:14px;padding:5px 4px}
+.g6 input,.g6 select{font-size:14px;padding:3px 4px}
 @media (max-width:700px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.coupures{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px 14px;margin:4px 0 12px}
+.coupures{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:3px 14px;margin:2px 0 6px}
 .cp{display:grid;grid-template-columns:52px 14px 1fr 14px 1fr;align-items:center;gap:6px}
 .cp input{margin:0}.cp .v{font-weight:700}
 .boutons{display:flex;gap:14px;margin:6px 0}
@@ -534,7 +537,6 @@ function formulaireHtml(){
   const opts=Array.from({length:13},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
   const coupures=VAL.map((v,i)=>`<div class="cp"><span class="v">${String(v).replace('.',',')} €</span><span>×</span><input id="c${i}" type="number" min="0" step="1" inputmode="numeric"><span>=</span><input id="m${i}" class="gris" readonly tabindex="-1"></div>`).join('');
   return `<form class="cptform" id="cf" autocomplete="off" onsubmit="return false">
-    <h4>Saisie du comptage</h4>
     <div class="grille g6">
       <label>Date<input id="f-date" class="gris" readonly value="${new Date().toLocaleDateString('fr-FR')}"></label>
       <label>Date tournée<input id="f-dt" type="date"></label>
@@ -559,7 +561,6 @@ function formulaireHtml(){
     </div>
     <div class="boutons"><button type="button" id="f-annuler" class="rouge">Annuler</button><button type="button" id="f-valider" class="vert">Valider</button></div>
     <p id="f-msg" class="note"></p>
-    <p class="note">Valider enregistre le comptage dans la feuille Comptage_poche et vide le formulaire. Annuler ferme la session.</p>
   </form>`;
 }
 function calcForm(){
