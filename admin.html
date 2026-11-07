@@ -84,6 +84,10 @@ button.sup{font-size:13px;padding:5px 10px;border:1px solid #d9a0a0;border-radiu
 button.sup:hover{background:#ffeaea}
 .cptdroite{display:flex;align-items:center;justify-content:center;min-height:320px}
 .cptdroite.ouvert{display:block;min-height:0}
+.cptcol{min-width:0}
+.cpttotwrap{overflow-x:auto;margin-top:8px}
+table.cpt.cpttot{font-size:12px;width:100%}
+table.cpt.cpttot th,table.cpt.cpttot td{padding:4px 5px;text-align:center;white-space:nowrap}
 .gros{font-size:20px;font-weight:700;padding:22px 34px;border:0;border-radius:12px;background:#1a73e8;color:#fff;cursor:pointer;box-shadow:0 2px 8px #0003}
 .gros:hover,.gros:focus{background:#1558b0}
 .cptform{background:#e3f6ff;border:1px solid #b7dff3;border-radius:10px;padding:6px 14px}
@@ -701,7 +705,10 @@ $('ab-cpt').onclick=()=>{
       <div id="cpt-table"></div>
       <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille. « Hors secteur » : dons hors de tes secteurs tracés.</p>
     </div>
-    <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
+    <div class="cptcol">
+      <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
+      <div class="cpttotwrap"><table class="cpt cpttot"><tr><th>Nbr poche</th><th>Nbr calendrier</th><th>Total</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total monnaie</th><th>Nbr chèques</th><th>Total chèques</th></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
+    </div>
   </div>`,true);
   $('ouvrir-session').onclick=ouvrirSession;
   $('cpt-actu').onclick=actualiserComptage;
