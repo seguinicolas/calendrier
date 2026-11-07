@@ -12,8 +12,8 @@
   html,body{height:100%;margin:0;font-family:system-ui,sans-serif}
   #map{position:absolute;inset:0 0 90px 0}
   #bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;gap:8px;padding:8px;box-sizing:border-box;background:#222}
-  #bar button{flex:1;font-size:16px;font-weight:700;border:0;border-radius:12px;color:#fff}
-  #don{background:#2e9e4f}#abs{background:#e08a00}#liste{background:#1a73e8}
+  #bar button{flex:1;min-width:0;padding:0 4px;font-size:15px;font-weight:700;border:0;border-radius:12px;color:#fff}
+  #don{background:#2e9e4f}#abs{background:#e08a00}#refus{background:#d32f2f}#liste{background:#1a73e8}
   #eqsel{position:absolute;top:8px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
   #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
@@ -58,6 +58,7 @@
 <div id="bar">
   <button id="don">💶 Don reçu</button>
   <button id="abs">🚪 Absent</button>
+  <button id="refus">🚫 Refus</button>
   <button id="liste">📋 Absents</button>
 </div>
 <div id="modal"><div class="box">
@@ -216,6 +217,7 @@ function ouvrir(type,a,n,rec){
 }
 $('don').onclick=()=>ouvrir('don');
 $('abs').onclick=()=>ouvrir('absent');
+$('refus').onclick=()=>ouvrir('refus');
 $('cancel').onclick=()=>$('modal').style.display='none';
 $('ok').onclick=()=>{
   const don=cur.type==='don';
