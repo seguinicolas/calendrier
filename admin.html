@@ -127,14 +127,14 @@ table.cpt.eqt td:first-child{text-align:center}
 </head>
 <body>
 <div id="map"></div>
-<div id="abar"><b>Calendriers — Administration</b><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div>
+<div id="abar"><b id="atitre">Calendriers — Administration</b><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div>
 <div id="veil"></div>
 <nav id="drawer" aria-label="Menu d'administration">
   <div class="tete"><span>Menu</span><button id="fermer" aria-label="Fermer le menu">×</button></div>
-  <button class="mi" id="ab-couches">⬇️ Téléchargement des couches</button>
-  <button class="mi" id="ab-recap">📊 Récapitulatif des tournées</button>
-  <button class="mi" id="ab-cpt">🧮 Comptage</button>
-  <button class="mi" id="ab-param">⚙️ Paramètres</button>
+  <button class="mi" id="ab-couches" data-titre="Téléchargement des couches">⬇️ Téléchargement des couches</button>
+  <button class="mi" id="ab-recap" data-titre="Récapitulatif">📊 Récapitulatif des tournées</button>
+  <button class="mi" id="ab-cpt" data-titre="Comptage">🧮 Comptage</button>
+  <button class="mi" id="ab-param" data-titre="Paramètres">⚙️ Paramètres</button>
   <div class="pied">Administration · menu v1</div>
 </nav>
 <div id="admin"><div class="in" style="padding-top:76px">
@@ -489,6 +489,7 @@ $('veil').onclick=()=>ouvrirMenu(false);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')ouvrirMenu(false)});
 document.querySelectorAll('#drawer .mi').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('#drawer .mi').forEach(x=>x.classList.remove('on'));b.classList.add('on');ouvrirMenu(false);
+  $('atitre').textContent=b.dataset.titre;
 }));
 $('ab-couches').onclick=()=>{
   panneau(`<h3>Couches</h3>
