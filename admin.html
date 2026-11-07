@@ -410,10 +410,14 @@ async function rendreIndiv(){
   }
   if(!$('indiv'))return; // on a changé d'onglet entre-temps
   rows=rows.filter(r=>String(r.nom||'').trim()!=='');
-  const nb=Math.ceil(rows.length/2),cell=v=>v===null||v===undefined?'—':v;
+  const cell=v=>v===null||v===undefined?'—':v;
+  // la feuille a deux blocs côte à côte (champ « bloc ») ; sinon on coupe la liste en deux
+  const nb=Math.ceil(rows.length/2);
+  const gauche=rows.some(r=>r.bloc)?rows.filter(r=>r.bloc===1):rows.slice(0,nb);
+  const droite=rows.some(r=>r.bloc)?rows.filter(r=>r.bloc===2):rows.slice(nb);
   const bloc=L=>`<table class="cpt ind"><tr><th>Nom</th><th>Fait</th><th>Reste à faire</th></tr>${L.map(r=>`<tr><td>${esc(r.nom)}</td><td>${cell(r.fait)}</td><td>${cell(r.reste)}</td></tr>`).join('')}</table>`;
   $('indiv').innerHTML='<h4 style="margin:4px 0 10px">Décompte des calendriers par personne</h4>'
-    +'<div class="indiv2">'+bloc(rows.slice(0,nb))+bloc(rows.slice(nb))+'</div>'
+    +'<div class="indiv2">'+bloc(gauche)+bloc(droite)+'</div>'
     +(branche?'':'<p class="note">Mise en page seule pour l\'instant : les chiffres « Fait » et « Reste à faire » apparaîtront quand la lecture de la feuille Recap_pers sera branchée.</p>');
 }
 function recap(){
