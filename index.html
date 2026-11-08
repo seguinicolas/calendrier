@@ -93,6 +93,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 const COUL=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6','#bcf60c','#008080','#9a6324','#800000','#808000','#000075'];
 // Secteur (équipe) d'un point : croisement avec les polygones
 const SECT=[];
+const SECT_PRETS=[];   // chargements des secteurs : les adresses attendent qu'ils soient terminés
 function dans(pt,ring){let c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
 function secteurDe(lng,lat){
   const pt=[lng,lat];
@@ -107,7 +108,7 @@ function equipe(a){if(a.eq===undefined&&SECT.length){const z=secteurDe(a.lng,a.l
 function ligneEq(a){equipe(a);return a.eq===undefined?'':(a.eq!==''?`Équipe ${esc(a.eq)} · ${esc(a.zone)}`:'Secteur non défini')}
 function secteurs(url,zone){
   const g=L.layerGroup().addTo(map);
-  fetch(url+'?v='+Date.now()).then(r=>r.json()).then(d=>{
+  SECT_PRETS.push(fetch(url+'?v='+Date.now()).then(r=>r.json()).then(d=>{
     const feats=(d.features||[]).filter(f=>f.geometry&&f.geometry.coordinates&&f.geometry.coordinates.length&&f.properties&&f.properties.equipe!=null);
     feats.forEach(f=>{const g=f.geometry,P=g.type==='MultiPolygon'?g.coordinates:[g.coordinates];SECT.push({zone,equipe:f.properties.equipe,polys:P.map(rings=>{const xs=rings[0].map(q=>q[0]),ys=rings[0].map(q=>q[1]);return{rings,b:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]}})})});
     L.geoJSON({type:'FeatureCollection',features:feats},{
@@ -115,7 +116,7 @@ function secteurs(url,zone){
       style:f=>{const c=COUL[(f.properties.equipe-1)%COUL.length];return{color:c,weight:2,fillColor:c,fillOpacity:.25}},
       onEachFeature:(f,l)=>l.bindTooltip('Éq. '+f.properties.equipe,{permanent:true,direction:'center',className:'eq'})
     }).addTo(g);
-  }).catch(()=>{});
+  }).catch(()=>{}));
   return g;
 }
 const gAdr=L.featureGroup();
@@ -415,6 +416,7 @@ function chargerAdresses(){
   return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
     d.features.forEach(f=>{
       const [lng,lat]=f.geometry.coordinates;
+      if(SECT.length&&!secteurDe(lng,lat))return;   // adresse hors de toute tournée : point non chargé (si les secteurs n'ont pas pu être lus, on garde tout)
       const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
       const mk=L.circleMarker([lat,lng],{radius:rayon(),color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
       mk.a=a;mk.L={};pts[a.id]=mk;
@@ -424,7 +426,7 @@ function chargerAdresses(){
 // Chargement initial puis actualisation automatique (1 min) des saisies des autres
 let vus=0,encours=false;
 const traiter=rows=>rows.forEach(r=>{try{addMarker(r)}catch(e){}});
-Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.reduce((m,r)=>Math.max(m,Number(r.maj)||0),0);traiter(rows)});
+Promise.all([Promise.all(SECT_PRETS).then(chargerAdresses),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.reduce((m,r)=>Math.max(m,Number(r.maj)||0),0);traiter(rows)});
 function actualiser(){
   if(encours||document.hidden||!navigator.onLine)return;
   encours=true;flush();
