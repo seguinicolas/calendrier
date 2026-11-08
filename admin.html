@@ -617,6 +617,7 @@ async function validerForm(){
   if(!$('f-valider'))return;
   $('f-valider').disabled=false;
   if(d&&d.ok){
+    cumulerSession(c);   // ajoute cette poche aux totaux de la session (avant que le formulaire soit vidé)
     const cochee=await cocherPoche(dt,t,z);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
     COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
     msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
@@ -661,7 +662,7 @@ async function remplirEquipiers(t){
 }
 function ouvrirSession(){
   const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
-  $('cpttot').classList.add('ouvert');SESSION=true;SESSION_ID=nouvelIdSession();$('cpt-fermer').title='Session '+SESSION_ID;majBandeauCpt();
+  $('cpttot').classList.add('ouvert');SESSION=true;SESSION_ID=nouvelIdSession();nouvelleSess();majTotSession();$('cpt-fermer').title='Session '+SESSION_ID;majBandeauCpt();
   $('cf').addEventListener('input',calcForm);
   prepEquipiers();
   EQ_IDS.forEach(id=>$(id).addEventListener('change',griserEquipiers));
@@ -678,7 +679,21 @@ function fermerSession(){
   $('ouvrir-session').onclick=ouvrirSession;
 }
 // ---- Session de comptage : la page Comptage reste en mémoire quand on navigue ailleurs dans l'admin
-let SESSION=false,PAGE='',SESSION_ID='';
+let SESSION=false,PAGE='',SESSION_ID='',SESS=null;
+// Totaux de la session en cours (poches déjà validées), affichés dans le tableau en long du haut
+function nouvelleSess(){SESS={poches:0,nb:0,total:0,q:VAL.map(()=>0),mon:0,esp:0,chn:0,chm:0}}
+function majTotSession(){
+  const r=$('cpttotrow');if(!r||!SESS)return;
+  r.innerHTML=[SESS.poches,SESS.nb,fmt(SESS.total),...SESS.q,fmt(SESS.mon),fmt(SESS.esp),SESS.chn,fmt(SESS.chm)].map(x=>'<td>'+x+'</td>').join('');
+}
+function cumulerSession(c){
+  if(!SESS)nouvelleSess();
+  const e=x=>Math.max(0,Math.floor(Number(x)||0));
+  SESS.poches++;SESS.nb+=c.nb;SESS.total+=c.tot;SESS.esp+=c.esp;SESS.chm+=c.chq;
+  VAL.forEach((v,i)=>{SESS.q[i]+=e($('c'+i).value)});
+  SESS.mon+=Number($('f-mon').value)||0;SESS.chn+=e($('f-chn').value);
+  majTotSession();
+}
 const nouvelIdSession=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'S'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
 function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
 function afficherCpt(){$('apanel').style.display='none';$('apanelcpt').style.display='';$('admin').scrollTop=0;$('admin').querySelector('.in').classList.add('large')}
@@ -732,7 +747,7 @@ async function actualiserComptage(){
 }
 $('ab-cpt').onclick=()=>{
   if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();return}   // session ouverte : page conservée
-  panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Nbr<br>poche</th><th>Nbr<br>calendrier</th><th>Total</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total<br>monnaie</th><th>Nbr<br>chèques</th><th>Total<br>chèques</th></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
+  panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Nbr<br>poche</th><th>Nbr<br>calendrier</th><th>Total</th><th>0,50 €</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total<br>espèces</th><th>Nbr<br>chèques</th><th>Total<br>chèques</th></tr><tr id="cpttotrow"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
     <p id="cpt-etat" class="note" style="margin:8px 0">Chargement…</p>
     <div class="cptwrap">
     <div class="cptleft">
