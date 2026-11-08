@@ -413,7 +413,7 @@ function chargerAdresses(){
     d.features.forEach(f=>{
       const [lng,lat]=f.geometry.coordinates;
       const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
-      const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
+      const mk=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
       mk.a=a;mk.L={};pts[a.id]=mk;
     });
   }).catch(()=>{});
