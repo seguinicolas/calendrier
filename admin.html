@@ -595,7 +595,7 @@ async function validerForm(){
   if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
   if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet. Total calculé : "+fmt(c.tot),true);return}
   if(!COMPTAGE_ID)COMPTAGE_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-  const envoi={action:'comptage',id:COMPTAGE_ID,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
+  const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
     coupures:VAL.map((v,i)=>Math.max(0,Math.floor(Number($('c'+i).value)||0))),
     chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Number($('f-mon').value)||0};
   $('f-valider').disabled=true;msgForm('Enregistrement en cours…');
@@ -649,7 +649,7 @@ async function remplirEquipiers(t){
 }
 function ouvrirSession(){
   const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
-  $('cpttot').classList.add('ouvert');SESSION=true;majBandeauCpt();
+  $('cpttot').classList.add('ouvert');SESSION=true;SESSION_ID=nouvelIdSession();$('cpt-fermer').title='Session '+SESSION_ID;majBandeauCpt();
   $('cf').addEventListener('input',calcForm);
   prepEquipiers();
   EQ_IDS.forEach(id=>$(id).addEventListener('change',griserEquipiers));
@@ -661,12 +661,13 @@ function ouvrirSession(){
 }
 function fermerSession(){
   const z=$('cptdroite');z.classList.remove('ouvert');
-  $('cpttot').classList.remove('ouvert');SESSION=false;majBandeauCpt();
+  $('cpttot').classList.remove('ouvert');SESSION=false;SESSION_ID='';majBandeauCpt();
   z.innerHTML='<button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button>';
   $('ouvrir-session').onclick=ouvrirSession;
 }
 // ---- Session de comptage : la page Comptage reste en mémoire quand on navigue ailleurs dans l'admin
-let SESSION=false,PAGE='';
+let SESSION=false,PAGE='',SESSION_ID='';
+const nouvelIdSession=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'S'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
 function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
 function afficherCpt(){$('apanel').style.display='none';$('apanelcpt').style.display='';$('admin').scrollTop=0;$('admin').querySelector('.in').classList.add('large')}
 function panneauCpt(html){$('apanelcpt').innerHTML=html;afficherCpt()}
