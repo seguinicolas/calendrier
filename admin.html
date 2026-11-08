@@ -586,6 +586,17 @@ function resetForm(){
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
 }
 
+// Coche automatiquement compt_amicale pour la poche validée (même fonction du Sheet que la case cochée à la main)
+async function cocherPoche(dt,t,z){
+  const num=Number(t);
+  let r=null;
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:dt,t:num,z:z,valeur:true})});r=await x.json()}catch(e){r=null}
+  if(!(r&&r.ok))return false;
+  const g=RECAP.find(x=>x.jour===dt&&Number(x.t)===num&&x.z===z);if(g)g.amicale=true;
+  const tr=document.querySelector(`#cpt-table tr.lg[data-jour="${dt}"][data-t="${num}"][data-z="${z}"]`);
+  if(tr){tr.classList.add('ok');const cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=true}
+  return true;
+}
 let COMPTAGE_ID='';
 async function validerForm(){
   const c=calcForm(),dt=$('f-dt').value,t=$('f-t').value,z=$('f-z').value;
@@ -606,8 +617,9 @@ async function validerForm(){
   if(!$('f-valider'))return;
   $('f-valider').disabled=false;
   if(d&&d.ok){
+    const cochee=await cocherPoche(dt,t,z);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
     COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
-    msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+').');return;
+    msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
   }
   msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):"Pas de réponse du Sheet : vérifie la feuille Comptage_poche avant de recommencer (un nouvel essai ne crée pas de doublon).",true);
 }
