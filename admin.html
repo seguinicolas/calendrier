@@ -61,7 +61,8 @@ table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table
 .cptwrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:start}
 .cptleft h3{margin:0 0 8px}
 .cptleft{max-width:640px}
-#cpt-table{max-height:calc(100vh - 243px);min-height:200px;overflow:auto}
+.affc{display:block;margin:0 0 6px;font-size:14px;color:#33475b;cursor:pointer}
+#cpt-table{max-height:calc(100vh - 270px);min-height:200px;overflow:auto}
 table.cpt tr.lg.ok td{background:#cdeccd}
 table.cpt tr.lg.ok:hover td{background:#bfe5bf}
 table.cpt tr.sel td{box-shadow:inset 0 2px 0 #1a73e8,inset 0 -2px 0 #1a73e8}
@@ -782,14 +783,15 @@ $('cpt-fermer').onclick=()=>{
 // ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
 let RECAP=[];
 // Poches déjà comptées : masquées à l'ouverture du Comptage, sauf celles validées pendant la session (elles restent visibles, en vert)
+let AFF_COMPTEES=false,LAST_D=null;
 const GARDEES=new Set();const cleP=g=>g.jour+'|'+g.t+'|'+g.z;
 const lireRecap=()=>fetch(API+'?recap=1&t='+Date.now()).then(r=>r.json()).then(d=>{if(!d||!Array.isArray(d.rows))throw new Error('format');return d});
 function etatCpt(t,erreur){const m=$('cpt-etat');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#555';m.style.fontWeight=erreur?'700':'400'}}
 function tableComptage(d){
   if(!$('cpt-table'))return;
-  RECAP=d.rows;let tn=0,ts=0,vis=0;
+  LAST_D=d;RECAP=d.rows;let tn=0,ts=0,vis=0;
   const lignes=RECAP.map((g,i)=>{
-    if(g.amicale&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
+    if(g.amicale&&!AFF_COMPTEES&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
     vis++;tn+=g.n;ts+=g.s;
     return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td><input type="checkbox"${g.amicale?' checked':''}></td></tr>`;
   }).join('');
@@ -825,11 +827,12 @@ async function actualiserComptage(){
 }
 $('ab-cpt').onclick=()=>{
   if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
-  GARDEES.clear();
+  GARDEES.clear();AFF_COMPTEES=false;LAST_D=null;
   panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Nbr<br>poche</th><th>Nbr<br>calendrier</th><th>Total</th><th>0,50 €</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total<br>espèces</th><th>Nbr<br>chèques</th><th>Total<br>chèques</th></tr><tr id="cpttotrow"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
     <p id="cpt-etat" class="note" style="margin:8px 0">Chargement…</p>
     <div class="cptwrap">
     <div class="cptleft">
+      <label class="affc"><input type="checkbox" id="aff-comptees"> Afficher aussi les poches comptées</label>
       <div id="cpt-table"></div>
       <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille. « Hors secteur » : dons hors de tes secteurs tracés.</p>
     </div>
@@ -839,6 +842,7 @@ $('ab-cpt').onclick=()=>{
     </div>
   </div>`);
   $('ouvrir-session').onclick=ouvrirSession;
+  $('aff-comptees').onchange=()=>{AFF_COMPTEES=$('aff-comptees').checked;if(LAST_D)tableComptage(LAST_D)};
   $('cpt-actu').onclick=actualiserComptage;
   if(TEST)lireRecap().then(d=>{tableComptage(d);etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
   else actualiserComptage();   // le tableau est recalculé dans le Sheet dès l'ouverture du Comptage
