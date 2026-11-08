@@ -607,6 +607,7 @@ async function chargerListeSession(){
     if(!d||!Array.isArray(d.rows))throw new Error('format');
     if(id!==SESSION_ID||!$('cptlist'))return;
     LISTE=d.rows.slice().reverse();   // le plus récent en haut
+    LISTE.forEach(r=>GARDEES.add(r.jour+'|'+r.t+'|'+r.z));
     rendreListe();
   }catch(e){if($('cptlist'))$('cptlist').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Liste de la session indisponible (Code.gs à mettre à jour et redéployer ?).</p>'}
 }
@@ -657,6 +658,7 @@ async function cocherPoche(dt,t,z){
   let r=null;
   try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:dt,t:num,z:z,valeur:true})});r=await x.json()}catch(e){r=null}
   if(!(r&&r.ok))return false;
+  GARDEES.add(dt+'|'+num+'|'+z);
   const g=RECAP.find(x=>x.jour===dt&&Number(x.t)===num&&x.z===z);if(g)g.amicale=true;
   const tr=document.querySelector(`#cpt-table tr.lg[data-jour="${dt}"][data-t="${num}"][data-z="${z}"]`);
   if(tr){tr.classList.add('ok');const cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=true}
@@ -683,6 +685,7 @@ async function validerForm(){
   if(!$('f-valider'))return;
   $('f-valider').disabled=false;
   if(d&&d.ok&&EDIT_ID){
+    GARDEES.add(dt+'|'+Number(t)+'|'+z);
     EDIT_ID='';COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
     $('f-valider').textContent='Valider';
     rafraichirSession();msgForm('✔ Modification enregistrée (totaux, liste et tableau de gauche rechargés).');return;
@@ -778,16 +781,19 @@ $('cpt-fermer').onclick=()=>{
 };
 // ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
 let RECAP=[];
+// Poches déjà comptées : masquées à l'ouverture du Comptage, sauf celles validées pendant la session (elles restent visibles, en vert)
+const GARDEES=new Set();const cleP=g=>g.jour+'|'+g.t+'|'+g.z;
 const lireRecap=()=>fetch(API+'?recap=1&t='+Date.now()).then(r=>r.json()).then(d=>{if(!d||!Array.isArray(d.rows))throw new Error('format');return d});
 function etatCpt(t,erreur){const m=$('cpt-etat');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#555';m.style.fontWeight=erreur?'700':'400'}}
 function tableComptage(d){
   if(!$('cpt-table'))return;
-  RECAP=d.rows;let tn=0,ts=0;
+  RECAP=d.rows;let tn=0,ts=0,vis=0;
   const lignes=RECAP.map((g,i)=>{
-    tn+=g.n;ts+=g.s;
+    if(g.amicale&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
+    vis++;tn+=g.n;ts+=g.s;
     return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td><input type="checkbox"${g.amicale?' checked':''}></td></tr>`;
   }).join('');
-  $('cpt-table').innerHTML=`<table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>compt_amicale</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">Tableau vide : appuie sur Actualiser.</td></tr>'}${RECAP.length?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
+  $('cpt-table').innerHTML=`<table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>compt_amicale</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
   $('cpt-actu').title=d.maj?'Dernière actualisation : '+d.maj:'Pas encore actualisé';
   $('cpt-table').querySelectorAll('input[type=checkbox]').forEach(c=>{
     c.onclick=e=>e.stopPropagation();
@@ -795,7 +801,7 @@ function tableComptage(d){
       const g=RECAP[+c.closest('tr').dataset.i],val=c.checked;
       let r=null;
       try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:g.jour,t:g.t,z:g.z,valeur:val})});r=await x.json()}catch(e){r=null}
-      if(r&&r.ok){g.amicale=val;c.closest('tr').classList.toggle('ok',val);return}
+      if(r&&r.ok){g.amicale=val;if(val)GARDEES.add(cleP(g));c.closest('tr').classList.toggle('ok',val);return}
       etatCpt('Case non enregistrée ('+((r&&r.erreur)||'pas de réponse')+'). Tableau relu depuis le Sheet.',true);
       try{tableComptage(await lireRecap())}catch(e){c.checked=!val}
     };
@@ -819,6 +825,7 @@ async function actualiserComptage(){
 }
 $('ab-cpt').onclick=()=>{
   if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
+  GARDEES.clear();
   panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Nbr<br>poche</th><th>Nbr<br>calendrier</th><th>Total</th><th>0,50 €</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total<br>espèces</th><th>Nbr<br>chèques</th><th>Total<br>chèques</th></tr><tr id="cpttotrow"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
     <p id="cpt-etat" class="note" style="margin:8px 0">Chargement…</p>
     <div class="cptwrap">
