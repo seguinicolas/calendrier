@@ -653,6 +653,7 @@ function ouvrirSession(){
   $('cf').addEventListener('input',calcForm);
   prepEquipiers();
   EQ_IDS.forEach(id=>$(id).addEventListener('change',griserEquipiers));
+  $('f-t').addEventListener('change',()=>remplirEquipiers($('f-t').value));   // saisie directe : équipiers 1 et 2 remplis selon la tournée
   $('f-annuler').onclick=fermerSession;
   $('f-valider').onclick=validerForm;
   const sel=document.querySelector('table.cpt tr.sel');if(sel)remplirDepuisLigne(sel);
