@@ -85,6 +85,14 @@ button.sup:hover{background:#ffeaea}
 .cptdroite{display:flex;align-items:center;justify-content:center;min-height:320px}
 .cptdroite.ouvert{display:block;min-height:0}
 .cptcol{min-width:0}
+#cptlist{margin-top:8px;overflow:auto;max-height:calc(100vh - 640px)}
+#cptlist.ouvert{min-height:140px}
+table.cpt.cptl{font-size:12px}
+table.cpt.cptl th,table.cpt.cptl td{padding:4px 6px}
+table.cpt.cptl td:nth-child(n+4){text-align:right}
+table.cpt.cptl td:last-child{text-align:center}
+#cptlist button.ib{border:0;background:transparent;font-size:16px;cursor:pointer;padding:2px 5px;border-radius:6px}
+#cptlist button.ib:hover{background:#e8eefb}
 .cpttotwrap{overflow-x:auto;min-height:82px}
 .cpttotwrap table{visibility:hidden}
 .cpttotwrap.ouvert table{visibility:visible}
@@ -586,6 +594,63 @@ function resetForm(){
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
 }
 
+// ---- Récap des comptages validés dans la session (feuille Comptage_poche) : modifier ✏️ / supprimer ❌
+let EDIT_ID='',LISTE=[];
+async function chargerListeSession(){
+  const z=$('cptlist');if(!z)return;
+  const id=SESSION_ID;
+  if(!SESSION||!id){z.innerHTML='';z.classList.remove('ouvert');return}
+  z.classList.add('ouvert');
+  if(TEST){z.innerHTML='<p class="note">Mode test : liste indisponible.</p>';return}
+  try{
+    const d=await fetch(API+'?comptages=1&session='+encodeURIComponent(id)+'&t='+Date.now()).then(x=>x.json());
+    if(!d||!Array.isArray(d.rows))throw new Error('format');
+    if(id!==SESSION_ID||!$('cptlist'))return;
+    LISTE=d.rows.slice().reverse();   // le plus récent en haut
+    rendreListe();
+  }catch(e){if($('cptlist'))$('cptlist').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Liste de la session indisponible (Code.gs à mettre à jour et redéployer ?).</p>'}
+}
+function rendreListe(){
+  const z=$('cptlist');if(!z)return;
+  if(!LISTE.length){z.innerHTML='<p class="note">Aucun comptage validé dans cette session.</p>';return}
+  z.innerHTML='<table class="cpt cptl"><tr><th>Date tournée</th><th>Tournée</th><th>Secteur</th><th>Nbr cal.</th><th>Espèces</th><th>Chèques</th><th>Total</th><th></th></tr>'
+    +LISTE.map((r,i)=>`<tr${r.id===EDIT_ID?' class="sel"':''}><td>${r.jour.split('-').reverse().join('/')}</td><td>${r.t}</td><td>${r.z==='ville'?'Ville':'Campagne'}</td><td>${r.nb}</td><td>${fmt(r.esp)}</td><td>${fmt(r.chm)}</td><td>${fmt(r.total)}</td><td style="white-space:nowrap"><button class="ib" data-i="${i}" data-a="mod" title="Modifier">✏️</button><button class="ib" data-i="${i}" data-a="sup" title="Supprimer">❌</button></td></tr>`).join('')+'</table>';
+  z.querySelectorAll('button.ib').forEach(b=>b.onclick=()=>b.dataset.a==='mod'?modifierLigne(LISTE[+b.dataset.i]):supprimerLigne(LISTE[+b.dataset.i]));
+}
+async function modifierLigne(r){
+  if(!$('cf'))return;
+  EDIT_ID=r.id;
+  $('f-dt').value=r.jour;$('f-t').value=String(r.t);$('f-z').value=r.z;$('f-ty').value=r.type;$('f-nb').value=r.nb||'';
+  r.q.forEach((n,i)=>{$('c'+i).value=n||''});
+  $('f-chn').value=r.chn||'';$('f-chm').value=r.chm||'';$('f-mon').value=r.mon||'';
+  await prepEquipiers();
+  fixerEquipier('f-e1',r.e1);fixerEquipier('f-e2',r.e2);fixerEquipier('f-e3',r.e3);
+  calcForm();
+  $('f-valider').textContent='Enregistrer la modification';
+  msgForm('Modification du comptage de la tournée '+r.t+' du '+r.jour.split('-').reverse().join('/')+' : corrige puis enregistre, ou Annuler.');
+  rendreListe();
+}
+function sortirEdition(){
+  EDIT_ID='';
+  if($('cf')){resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));$('f-valider').textContent='Valider';msgForm('')}
+  rendreListe();
+}
+// Relit tout ce qui dépend des comptages : totaux de la session, liste, tableau de gauche
+function rafraichirSession(){
+  majTotSession();chargerListeSession();
+  lireRecap().then(d=>tableComptage(d)).catch(()=>{});
+}
+async function supprimerLigne(r){
+  if(!confirm('Supprimer ce comptage ?\nTournée '+r.t+' du '+r.jour.split('-').reverse().join('/')+' ('+(r.z==='ville'?'Ville':'Campagne')+') : '+r.nb+' calendriers, '+fmt(r.total)+'.\nLa poche sera décochée s\'il ne reste aucun autre comptage pour elle.'))return;
+  if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet.",true);return}
+  let d=null;
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'comptageSuppr',id:r.id})});d=await x.json()}catch(e){d=null}
+  if(d&&d.ok){
+    if(EDIT_ID===r.id)sortirEdition();
+    rafraichirSession();msgForm('✔ Comptage supprimé (copie gardée dans la feuille Comptage_poche supprimés).');return;
+  }
+  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : rien ne semble avoir été supprimé. Vérifie la feuille Comptage_poche.',true);
+}
 // Coche automatiquement compt_amicale pour la poche validée (même fonction du Sheet que la case cochée à la main)
 async function cocherPoche(dt,t,z){
   const num=Number(t);
@@ -609,6 +674,7 @@ async function validerForm(){
   const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
     coupures:VAL.map((v,i)=>Math.max(0,Math.floor(Number($('c'+i).value)||0))),
     chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Number($('f-mon').value)||0};
+  if(EDIT_ID){envoi.action='comptageModif';envoi.id=EDIT_ID}
   $('f-valider').disabled=true;msgForm('Enregistrement en cours…');
   let d=null;
   for(let essai=0;essai<2&&!d;essai++){
@@ -616,10 +682,15 @@ async function validerForm(){
   }
   if(!$('f-valider'))return;
   $('f-valider').disabled=false;
+  if(d&&d.ok&&EDIT_ID){
+    EDIT_ID='';COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
+    $('f-valider').textContent='Valider';
+    rafraichirSession();msgForm('✔ Modification enregistrée (totaux, liste et tableau de gauche rechargés).');return;
+  }
   if(d&&d.ok){
     const cochee=await cocherPoche(dt,t,z);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
     COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
-    majTotSession();   // totaux de la session relus dans recap_compta
+    majTotSession();chargerListeSession();   // totaux de la session relus dans recap_compta, liste mise à jour
     msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
   }
   msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):"Pas de réponse du Sheet : vérifie la feuille Comptage_poche avant de recommencer (un nouvel essai ne crée pas de doublon).",true);
@@ -662,19 +733,19 @@ async function remplirEquipiers(t){
 }
 function ouvrirSession(){
   const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
-  $('cpttot').classList.add('ouvert');SESSION=true;SESSION_ID=nouvelIdSession();majTotSession();$('cpt-fermer').title='Session '+SESSION_ID;majBandeauCpt();
+  $('cpttot').classList.add('ouvert');SESSION=true;SESSION_ID=nouvelIdSession();majTotSession();chargerListeSession();$('cpt-fermer').title='Session '+SESSION_ID;majBandeauCpt();
   $('cf').addEventListener('input',calcForm);
   prepEquipiers();
   EQ_IDS.forEach(id=>$(id).addEventListener('change',griserEquipiers));
   $('f-t').addEventListener('change',()=>remplirEquipiers($('f-t').value));   // saisie directe : équipiers 1 et 2 remplis selon la tournée
-  $('f-annuler').onclick=fermerSession;
+  $('f-annuler').onclick=()=>EDIT_ID?sortirEdition():fermerSession();
   $('f-valider').onclick=validerForm;
   const sel=document.querySelector('table.cpt tr.sel');if(sel)remplirDepuisLigne(sel);
   calcForm();
 }
 function fermerSession(){
   const z=$('cptdroite');z.classList.remove('ouvert');
-  $('cpttot').classList.remove('ouvert');SESSION=false;SESSION_ID='';majBandeauCpt();
+  $('cpttot').classList.remove('ouvert');SESSION=false;SESSION_ID='';EDIT_ID='';LISTE=[];majBandeauCpt();chargerListeSession();
   z.innerHTML='<button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button>';
   $('ouvrir-session').onclick=ouvrirSession;
 }
@@ -747,7 +818,7 @@ async function actualiserComptage(){
   if($('cpt-actu'))$('cpt-actu').disabled=false;
 }
 $('ab-cpt').onclick=()=>{
-  if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();return}   // session ouverte : page conservée
+  if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
   panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Nbr<br>poche</th><th>Nbr<br>calendrier</th><th>Total</th><th>0,50 €</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total<br>espèces</th><th>Nbr<br>chèques</th><th>Total<br>chèques</th></tr><tr id="cpttotrow"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
     <p id="cpt-etat" class="note" style="margin:8px 0">Chargement…</p>
     <div class="cptwrap">
@@ -757,6 +828,7 @@ $('ab-cpt').onclick=()=>{
     </div>
     <div class="cptcol">
       <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
+      <div id="cptlist"></div>
     </div>
   </div>`);
   $('ouvrir-session').onclick=ouvrirSession;
