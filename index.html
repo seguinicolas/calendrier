@@ -152,7 +152,7 @@ function addMarker(r){
   mk.D=mk.D||{};
   if(r.type==='don'){if(!prev||prev.type!=='don'||!mk.D[n])mk.D[n]=r.date}else delete mk.D[n];
   const col=couleurMk(mk);
-  if(mk.gps)mk.setIcon(carre(col));else mk.setStyle({fillColor:col,radius:8});
+  if(mk.gps)mk.setIcon(carre(col));else mk.setStyle({fillColor:col,radius:rayon()});
   if(mk.gps&&r.adresse)mk.a.adresse=r.adresse;
   const i=items.findIndex(x=>key(x.r)===k);if(i>=0)items.splice(i,1);
   items.push({r,mk,n});touched.add(mk);majBtn();applyFilters();
@@ -330,9 +330,12 @@ map.on('click',e=>{
 
 // Affichage selon l'échelle : points et carrés visibles à partir du zoom ZMIN
 const ZMIN=15;
+const ZGROS=17;   // à partir de ce zoom (niveau des rues) les points d'adresse passent de 5 à 8 px
+const rayon=()=>map.getZoom()>=ZGROS?8:5;
+function majRayons(){const r=rayon();Object.values(pts).forEach(mk=>{if(!mk.gps)mk.setRadius(r)})}
 const zoomOk=()=>map.getZoom()>=ZMIN;
 function majAdr(){(map.hasLayer(gAdrCtl)&&zoomOk())?map.addLayer(gAdr):map.removeLayer(gAdr)}
-function majZoom(){$('zoomhint').style.display=zoomOk()?'none':'block';majAdr();applyFilters()}
+function majZoom(){$('zoomhint').style.display=zoomOk()?'none':'block';majRayons();majAdr();applyFilters()}
 map.on('zoomend',majZoom);
 gAdrCtl.on('add remove',majAdr);
 
@@ -413,7 +416,7 @@ function chargerAdresses(){
     d.features.forEach(f=>{
       const [lng,lat]=f.geometry.coordinates;
       const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
-      const mk=L.circleMarker([lat,lng],{radius:8,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
+      const mk=L.circleMarker([lat,lng],{radius:rayon(),color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
       mk.a=a;mk.L={};pts[a.id]=mk;
     });
   }).catch(()=>{});
