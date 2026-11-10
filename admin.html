@@ -465,12 +465,13 @@ async function rendreEquipe(){
   const nb=v=>v===null||v===undefined?(branche?'':'—'):v;
   const mo=v=>v===null||v===undefined?(branche?'':'—'):fmt(v);
   const tri=x=>`<td>${nb(x.nbr)}</td><td>${x.diff===null||x.diff===undefined?'':x.diff}</td><td>${mo(x.moy)}</td>`;
-  $('equipe').innerHTML='<div style="overflow-x:auto"><table class="cpt eqt">'
+  $('equipe').innerHTML='<div style="display:flex;gap:12px;align-items:flex-start"><div style="overflow-x:auto;flex:1;min-width:0"><table class="cpt eqt">'
     +'<tr><th colspan="4"></th><th colspan="3">Ville</th><th colspan="3">Campagne</th><th colspan="3">Total</th></tr>'
     +'<tr><th>Tournée</th><th>Secteur</th><th>Équipier 1</th><th>Équipier 2</th>'+'<th>Nbr</th><th>Diff</th><th>Moy</th>'.repeat(3)+'</tr>'
     +rows.map(r=>`<tr><td>${esc(r.t)}</td><td>${esc(r.secteur)}</td><td>${esc(r.e1)}</td><td>${esc(r.e2)}</td>${tri(r.ville)}${tri(r.campagne)}${tri(r.total)}</tr>`).join('')
-    +'</table></div>'
+    +'</table></div><button class="pdf" id="eq-pdf" title="Imprimer ou enregistrer en PDF">📄 PDF</button></div>'
     +(branche?'':'<p class="note">Mise en page seule pour l\'instant : les chiffres apparaîtront quand la lecture de la feuille Recap_equipe sera branchée.</p>');
+  $('eq-pdf').onclick=imprimerEquipe;
 }
 // Récapitulatif individuel : reproduit la feuille Recap_pers (Nom · Fait · Reste à faire)
 async function rendreIndiv(){
@@ -862,6 +863,18 @@ async function ouvrirHisto(){
 function imprimerSession(r){
   const lignes=HISTO_LIB.map((t,k)=>'<tr><td>'+t+'</td><td class="v">'+histoVal(r.vals[k],k)+'</td></tr>').join('');
   const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Comptage '+esc(r.session)+'</title><style>body{font-family:system-ui,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 4px}p{margin:2px 0 14px;color:#444}table{border-collapse:collapse;width:100%;max-width:520px}td{border:1px solid #999;padding:6px 10px;font-size:14px}td.v{text-align:right;font-weight:700}</style></head><body><h1>Calendriers — comptage du '+r.date.txt+'</h1><p>Session '+esc(r.session)+' · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p><table>'+lignes+'</table></body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+// Impression du « Récapitulatif par équipe » (page A4 en paysage ; la boîte d'impression propose « Enregistrer au format PDF »)
+function imprimerEquipe(){
+  const t=$('equipe')&&$('equipe').querySelector('table.eqt');if(!t)return;
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Récapitulatif par équipe</title><style>@page{size:landscape;margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;font-size:11px;text-align:center}th{background:#e8eefb}td:nth-child(2),td:nth-child(3),td:nth-child(4){text-align:left}td:nth-child(n+5){text-align:right}</style></head><body><h1>Récapitulatif par équipe</h1><p>Imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+t.outerHTML+'</body></html>';
   const f=document.createElement('iframe');
   f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
   document.body.appendChild(f);
