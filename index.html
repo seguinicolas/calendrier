@@ -134,11 +134,11 @@ navigator.geolocation.watchPosition(p=>{
 
 const pts={};
 const touched=new Set();
-const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa',refus:'#d32f2f'};
+const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa',refus:'#d32f2f',pompier:'#1a73e8'};
 const key=r=>r.ida||('p'+r.lat+','+r.lng);
 const carre=col=>L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid #fff;box-shadow:0 0 3px #000"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
-// Couleur d'un point selon ses logements : orange si un absent, sinon vert si un don, sinon rouge si un refus, sinon violet
-const couleurMk=mk=>{const t=Object.values(mk.L).map(r=>r.type);return t.includes('absent')?COLS.absent:t.includes('don')?COLS.don:t.includes('refus')?COLS.refus:t.length?COLS.inoccupe:'#777'};
+// Couleur d'un point selon ses logements : orange si un absent, sinon vert si un don, sinon rouge si un refus, sinon bleu si un pompier, sinon violet
+const couleurMk=mk=>{const t=Object.values(mk.L).map(r=>r.type);return t.includes('absent')?COLS.absent:t.includes('don')?COLS.don:t.includes('refus')?COLS.refus:t.includes('pompier')?COLS.pompier:t.length?COLS.inoccupe:'#777'};
 function addMarker(r){
   if(r.lat===''||r.lng===''||r.lat==null||r.lng==null)return;
   const k=key(r),base=k.split('#')[0],n=k.includes('#')?(+k.split('#')[1]||1):1;
@@ -205,7 +205,7 @@ function ouvrir(type,a,n,rec){
   cur=a?{lat:a.lat,lng:a.lng,type,ida}:{...pos,type};
   ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
   const don=type==='don';
-  $('titre').textContent=(don?'Don reçu':type==='refus'?'Refus':'Personne absente')+(n>1?' — Logement '+n:'');
+  $('titre').textContent=(don?'Don reçu':type==='refus'?'Refus':type==='pompier'?'Pompier':'Personne absente')+(n>1?' — Logement '+n:'');
   $('montant').style.display=$('mode').style.display=don?'':'none';
   $('modal').style.display='flex';
   $('nom').focus();
@@ -367,7 +367,7 @@ function popupAdr(a,gps){
   });
   return d;
 }
-const LAB={don:'💶 Don',absent:'🚪 Absent',inoccupe:'🏚️ Inoccupé',refus:'🚫 Refus'},NOMS={don:'Don',absent:'Absent',inoccupe:'Inoccupé',refus:'Refus'};
+const LAB={don:'💶 Don',absent:'🚪 Absent',inoccupe:'🏚️ Inoccupé',refus:'🚫 Refus',pompier:'🚒 Pompier'},NOMS={don:'Don',absent:'Absent',inoccupe:'Inoccupé',refus:'Refus',pompier:'Pompier'};
 const statutTxt=r=>(r.type==='don'?r.montant+' € ('+r.mode+')':NOMS[r.type])+(r.note?' — '+r.note:'');
 function popupMk(mk,extra){
   const a=mk.a;
@@ -388,7 +388,7 @@ function popupMk(mk,extra){
       bloc.insertAdjacentHTML('beforeend',`<span style="color:#555">🔒 Don du ${esc(jr.split('-').reverse().join('/'))} — non modifiable</span>`);
       d.appendChild(bloc);return;
     }
-    ['don','absent','inoccupe','refus'].filter(t=>!mk.gps||t!=='inoccupe').forEach(t=>{
+    ['don','absent','inoccupe','refus','pompier'].filter(t=>!mk.gps||(t!=='inoccupe'&&t!=='pompier')).forEach(t=>{
       const act=rec&&rec.type===t,b=document.createElement('button');
       b.textContent=LAB[t];
       b.style.cssText=`margin:4px 4px 0 0;padding:8px 10px;font-size:15px;border:2px solid ${COLS[t]};border-radius:8px;background:${act?COLS[t]:'#fff'};color:${act?'#fff':'#333'}`;
