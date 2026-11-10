@@ -66,8 +66,24 @@ table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table
 table.cpt tr.lg.ok td{background:#cdeccd}
 table.cpt tr.lg.ok:hover td{background:#bfe5bf}
 table.cpt tr.sel td{box-shadow:inset 0 2px 0 #1a73e8,inset 0 -2px 0 #1a73e8}
-#cpt-actu,#cpt-fermer{white-space:nowrap;height:36px;padding:0 12px;border:1px solid #ffffff88;border-radius:8px;background:transparent;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
-#cpt-actu:hover,#cpt-actu:focus,#cpt-fermer:hover,#cpt-fermer:focus{background:#ffffff22}
+#cpt-actu,#cpt-fermer,#cpt-histo{white-space:nowrap;height:36px;padding:0 12px;border:1px solid #ffffff88;border-radius:8px;background:transparent;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#cpt-actu:hover,#cpt-actu:focus,#cpt-fermer:hover,#cpt-fermer:focus,#cpt-histo:hover,#cpt-histo:focus{background:#ffffff22}
+#cpt-histo{line-height:1.15;font-size:13px}
+#cpt-histo small{display:block;font-size:11px;font-weight:400}
+/* Fenêtre « Historique des comptages » */
+#histo{position:fixed;inset:0;z-index:2500;background:#f4f6fa;display:none;flex-direction:column;font-family:system-ui,sans-serif}
+#histo.open{display:flex}
+#histo .tete{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;background:#1a2b4c;color:#fff}
+#histo .tete b{font-size:17px}
+#histo .tete button{height:36px;padding:0 14px;border:1px solid #ffffff88;border-radius:8px;background:transparent;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#histo .tete button:hover{background:#ffffff22}
+#histo .corps{flex:1;overflow:auto;padding:14px 16px}
+table.cpt.hist{font-size:13px;width:auto;min-width:100%}
+table.cpt.hist th,table.cpt.hist td{padding:6px 8px;text-align:right;white-space:nowrap}
+table.cpt.hist th{position:sticky;top:0;z-index:1;text-align:center;box-shadow:0 1px 0 #cfd6e4}
+table.cpt.hist td:nth-child(1),table.cpt.hist td:nth-child(2),table.cpt.hist td:last-child{text-align:center}
+button.pdf{border:1px solid #c62828;color:#c62828;background:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer}
+button.pdf:hover{background:#ffeaea}
 #cpt-actu:disabled,#cpt-fermer:disabled{opacity:.5;cursor:default}
 #cpt-table table.cpt th{position:sticky;top:0;z-index:1;box-shadow:0 1px 0 #cfd6e4}
 /* Flèches de tri ▲▼ dans les entêtes des tableaux du Comptage */
@@ -160,8 +176,9 @@ table.cpt.eqt td:first-child{text-align:center}
 </head>
 <body>
 <div id="map"></div>
-<div id="abar"><b id="atitre">Calendriers — Administration</b><div style="display:flex;align-items:center;gap:6px"><button id="cpt-fermer" style="display:none">Fermer session de comptage</button><button id="cpt-actu" style="display:none">🔄 Actualiser</button><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div></div>
+<div id="abar"><b id="atitre">Calendriers — Administration</b><div style="display:flex;align-items:center;gap:6px"><button id="cpt-fermer" style="display:none">Fermer session de comptage</button><button id="cpt-histo" style="display:none">📜 Historique des comptages<small>suivi de l'année en cours</small></button><button id="cpt-actu" style="display:none">🔄 Actualiser</button><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div></div>
 <div id="veil"></div>
+<div id="histo"><div class="tete"><b>Historique des comptages — suivi de l'année en cours</b><button id="histo-fermer">Fermer</button></div><div class="corps" id="histo-corps"></div></div>
 <nav id="drawer" aria-label="Menu d'administration">
   <div class="tete"><span>Menu</span><button id="fermer" aria-label="Fermer le menu">×</button></div>
   <button class="mi" id="ab-couches" data-titre="Téléchargement des couches">⬇️ Téléchargement des couches</button>
@@ -807,7 +824,7 @@ async function majTotSession(){
   $('cpttotrow').innerHTML=[v[0],v[1],fmt(v[2]),...v.slice(3,11),fmt(v[11]),fmt(v[12]),v[13],fmt(v[14])].map(x=>'<td>'+x+'</td>').join('');
 }
 const nouvelIdSession=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'S'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
-function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
+function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-histo').style.display=s?'':'none';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
 function afficherCpt(){$('apanel').style.display='none';$('apanelcpt').style.display='';$('admin').scrollTop=0;$('admin').querySelector('.in').classList.add('large')}
 function panneauCpt(html){$('apanelcpt').innerHTML=html;afficherCpt()}
 $('cpt-fermer').onclick=()=>{
@@ -816,6 +833,46 @@ $('cpt-fermer').onclick=()=>{
   if(saisi&&!confirm('Fermer la session de comptage ? Ce qui est saisi dans le formulaire et pas encore validé sera perdu.'))return;
   fermerSession();
 };
+// ---- Historique des comptages : tableau recap_compta de l'année en cours, avec impression / PDF de chaque ligne
+// La date de chaque ligne vient de l'identifiant de session (S20261110-143005 = 10/11/2026).
+const HISTO_LIB=['Nbr poche','Nbr calendrier','Total','0,50 €','1 €','2 €','5 €','10 €','20 €','50 €','100 €','Monnaie','Total espèces','Nbr chèques','Total chèques'];
+const HISTO_EUR=[2,11,12,14];   // colonnes en euros (les autres sont des quantités)
+const histoVal=(v,i)=>HISTO_EUR.includes(i)?fmt(Number(v)||0):String(v);
+function dateSession(id){const m=String(id).match(/^S(\d{4})(\d{2})(\d{2})-/);return m?{an:m[1],txt:m[3]+'/'+m[2]+'/'+m[1]}:null}
+let HISTO=[];
+function rendreHisto(){
+  const z=$('histo-corps');
+  if(!HISTO.length){z.innerHTML='<p class="note">Aucun comptage enregistré cette année.</p>';return}
+  z.innerHTML='<table class="cpt hist"><tr><th>Date</th><th>Session</th>'+HISTO_LIB.map(t=>'<th>'+t+'</th>').join('')+'<th></th></tr>'
+    +HISTO.map((r,i)=>'<tr><td>'+r.date.txt+'</td><td>'+esc(r.session)+'</td>'+r.vals.map((v,k)=>'<td>'+histoVal(v,k)+'</td>').join('')+'<td><button class="pdf" data-i="'+i+'" title="Imprimer ou enregistrer en PDF">📄 PDF</button></td></tr>').join('')+'</table>';
+  z.querySelectorAll('button.pdf').forEach(b=>b.onclick=()=>imprimerSession(HISTO[+b.dataset.i]));
+}
+async function ouvrirHisto(){
+  $('histo').classList.add('open');
+  $('histo-corps').innerHTML='<p class="note">Chargement…</p>';
+  try{
+    const d=await fetch(API+'?recapcompta=1&t='+Date.now()).then(x=>x.json());
+    if(!d||!Array.isArray(d.rows))throw new Error('format');
+    const an=String(new Date().getFullYear());
+    HISTO=d.rows.map(r=>({session:r.session,vals:r.vals,date:dateSession(r.session)})).filter(r=>r.date&&r.date.an===an).sort((a,b)=>b.session.localeCompare(a.session));
+    rendreHisto();
+  }catch(e){$('histo-corps').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Historique indisponible : lecture de recap_compta impossible.</p>'}
+}
+// Impression d'une ligne : la boîte d'impression du navigateur propose « Enregistrer au format PDF »
+function imprimerSession(r){
+  const lignes=HISTO_LIB.map((t,k)=>'<tr><td>'+t+'</td><td class="v">'+histoVal(r.vals[k],k)+'</td></tr>').join('');
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Comptage '+esc(r.session)+'</title><style>body{font-family:system-ui,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 4px}p{margin:2px 0 14px;color:#444}table{border-collapse:collapse;width:100%;max-width:520px}td{border:1px solid #999;padding:6px 10px;font-size:14px}td.v{text-align:right;font-weight:700}</style></head><body><h1>Calendriers — comptage du '+r.date.txt+'</h1><p>Session '+esc(r.session)+' · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p><table>'+lignes+'</table></body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+$('cpt-histo').onclick=ouvrirHisto;
+$('histo-fermer').onclick=()=>$('histo').classList.remove('open');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('histo').classList.remove('open')});
 // ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
 let RECAP=[];
 // Poches déjà comptées : masquées à l'ouverture du Comptage, sauf celles validées pendant la session (elles restent visibles, en vert)
