@@ -70,6 +70,11 @@ table.cpt tr.sel td{box-shadow:inset 0 2px 0 #1a73e8,inset 0 -2px 0 #1a73e8}
 #cpt-actu:hover,#cpt-actu:focus,#cpt-fermer:hover,#cpt-fermer:focus{background:#ffffff22}
 #cpt-actu:disabled,#cpt-fermer:disabled{opacity:.5;cursor:default}
 #cpt-table table.cpt th{position:sticky;top:0;z-index:1;box-shadow:0 1px 0 #cfd6e4}
+/* Flèches de tri ▲▼ dans les entêtes des tableaux du Comptage */
+.fl2{display:inline-flex;flex-direction:column;margin-left:5px;vertical-align:middle;line-height:10px}
+.fl2 i{font-style:normal;font-size:10px;color:#9aa8c4;cursor:pointer;padding:0 4px;user-select:none}
+.fl2 i:hover{color:#1a73e8}
+.fl2 i.on{color:#1a73e8}
 @media (max-width:1100px){.cptwrap{grid-template-columns:1fr}.cptleft{max-width:none;overflow-x:auto}}
 .pbox{max-width:900px}
 .onglets{display:flex;gap:6px;border-bottom:2px solid #c9d3e6;margin-bottom:10px}
@@ -595,6 +600,35 @@ function resetForm(){
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
 }
 
+// ---- Tri des colonnes (flèches ▲▼ dans les entêtes des deux tableaux du Comptage)
+// TRI.gauche : tableau de gauche (poches) · TRI.liste : tableau des comptages validés de la session
+// Un clic sur la flèche active la désactive (retour à l'ordre d'origine).
+const TRI={gauche:null,liste:null};
+function enteteTri(tab,c,titre){
+  const t=TRI[tab],on=d=>t&&t.c===c&&t.d===d?' class="on"':'';
+  return `<th>${titre}<span class="fl2"><i${on(1)} data-c="${c}" data-d="1" title="Du plus petit au plus grand (A → Z)">▲</i><i${on(-1)} data-c="${c}" data-d="-1" title="Du plus grand au plus petit (Z → A)">▼</i></span></th>`;
+}
+function trier(rows,tab,cols){
+  const t=TRI[tab];if(!t)return rows;
+  const f=cols[t.c];
+  return rows.map((r,k)=>[r,k]).sort((a,b)=>{
+    const x=f(a[0]),y=f(b[0]);
+    const c=(typeof x==='number'&&typeof y==='number')?x-y:String(x).localeCompare(String(y),'fr');
+    return c*t.d||a[1]-b[1];
+  }).map(a=>a[0]);
+}
+function brancherTri(zone,tab,rerendre){
+  zone.querySelectorAll('.fl2 i').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const c=+el.dataset.c,d=+el.dataset.d,t=TRI[tab];
+    TRI[tab]=(t&&t.c===c&&t.d===d)?null:{c,d};
+    rerendre();
+  });
+}
+// Valeur triée de chaque colonne (dans l'ordre des colonnes affichées)
+const COLS_G=[o=>o.g.jour,o=>o.g.t===''?999:Number(o.g.t),o=>o.g.z==='ville'?'Ville':o.g.z==='campagne'?'Campagne':'Hors secteur',o=>o.g.n,o=>o.g.s,o=>o.g.n?o.g.s/o.g.n:0,o=>o.g.amicale?1:0];
+const COLS_L=[o=>o.r.jour,o=>Number(o.r.t),o=>o.r.z==='ville'?'Ville':'Campagne',o=>o.r.nb,o=>o.r.esp,o=>o.r.chm,o=>o.r.total];
+
 // ---- Récap des comptages validés dans la session (feuille Comptage_poche) : modifier ✏️ / supprimer ❌
 let EDIT_ID='',LISTE=[];
 async function chargerListeSession(){
@@ -615,8 +649,10 @@ async function chargerListeSession(){
 function rendreListe(){
   const z=$('cptlist');if(!z)return;
   if(!LISTE.length){z.innerHTML='<p class="note">Aucun comptage validé dans cette session.</p>';return}
-  z.innerHTML='<table class="cpt cptl"><tr><th>Date tournée</th><th>Tournée</th><th>Secteur</th><th>Nbr cal.</th><th>Espèces</th><th>Chèques</th><th>Total</th><th></th></tr>'
-    +LISTE.map((r,i)=>`<tr${r.id===EDIT_ID?' class="sel"':''}><td>${r.jour.split('-').reverse().join('/')}</td><td>${r.t}</td><td>${r.z==='ville'?'Ville':'Campagne'}</td><td>${r.nb}</td><td>${fmt(r.esp)}</td><td>${fmt(r.chm)}</td><td>${fmt(r.total)}</td><td style="white-space:nowrap"><button class="ib" data-i="${i}" data-a="mod" title="Modifier">✏️</button><button class="ib" data-i="${i}" data-a="sup" title="Supprimer">❌</button></td></tr>`).join('')+'</table>';
+  const ordre=trier(LISTE.map((r,i)=>({r,i})),'liste',COLS_L);
+  z.innerHTML='<table class="cpt cptl"><tr>'+enteteTri('liste',0,'Date tournée')+enteteTri('liste',1,'Tournée')+enteteTri('liste',2,'Secteur')+enteteTri('liste',3,'Nbr cal.')+enteteTri('liste',4,'Espèces')+enteteTri('liste',5,'Chèques')+enteteTri('liste',6,'Total')+'<th></th></tr>'
+    +ordre.map(({r,i})=>`<tr${r.id===EDIT_ID?' class="sel"':''}><td>${r.jour.split('-').reverse().join('/')}</td><td>${r.t}</td><td>${r.z==='ville'?'Ville':'Campagne'}</td><td>${r.nb}</td><td>${fmt(r.esp)}</td><td>${fmt(r.chm)}</td><td>${fmt(r.total)}</td><td style="white-space:nowrap"><button class="ib" data-i="${i}" data-a="mod" title="Modifier">✏️</button><button class="ib" data-i="${i}" data-a="sup" title="Supprimer">❌</button></td></tr>`).join('')+'</table>';
+  brancherTri(z,'liste',rendreListe);
   z.querySelectorAll('button.ib').forEach(b=>b.onclick=()=>b.dataset.a==='mod'?modifierLigne(LISTE[+b.dataset.i]):supprimerLigne(LISTE[+b.dataset.i]));
 }
 async function modifierLigne(r){
@@ -790,12 +826,14 @@ function etatCpt(t,erreur){const m=$('cpt-etat');if(m){m.textContent=t;m.style.c
 function tableComptage(d){
   if(!$('cpt-table'))return;
   LAST_D=d;RECAP=d.rows;let tn=0,ts=0,vis=0;
-  const lignes=RECAP.map((g,i)=>{
+  const ordre=trier(RECAP.map((g,i)=>({g,i})),'gauche',COLS_G);
+  const lignes=ordre.map(({g,i})=>{
     if(g.amicale&&!AFF_COMPTEES&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
     vis++;tn+=g.n;ts+=g.s;
     return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td><input type="checkbox"${g.amicale?' checked':''}></td></tr>`;
   }).join('');
-  $('cpt-table').innerHTML=`<table class="cpt"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>compt_amicale</th></tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
+  $('cpt-table').innerHTML=`<table class="cpt"><tr>${enteteTri('gauche',0,'Date')}${enteteTri('gauche',1,'Tournée')}${enteteTri('gauche',2,'Secteur')}${enteteTri('gauche',3,'Nombre de calendriers')}${enteteTri('gauche',4,'Somme')}${enteteTri('gauche',5,'Moyenne')}${enteteTri('gauche',6,'compt_amicale')}</tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
+  brancherTri($('cpt-table'),'gauche',()=>tableComptage(LAST_D));
   $('cpt-actu').title=d.maj?'Dernière actualisation : '+d.maj:'Pas encore actualisé';
   $('cpt-table').querySelectorAll('input[type=checkbox]').forEach(c=>{
     c.onclick=e=>e.stopPropagation();
