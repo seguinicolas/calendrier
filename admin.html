@@ -268,7 +268,7 @@ const items = [];
 
 const pts={};
 const touched=new Set();
-const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa'};
+const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa',refus:'#d32f2f',pompier:'#1a73e8',supprimer:'#000'};
 const key=r=>r.ida||('p'+r.lat+','+r.lng);
 const carre=col=>L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid #fff;box-shadow:0 0 3px #000"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
 // Couleur d'un point selon ses logements : orange si un absent, sinon vert si un don, sinon violet
@@ -517,7 +517,7 @@ function exporterCouche(){
   const feats=[];
   Object.values(pts).forEach(mk=>{
     const a=equipe(mk.a),rs=Object.values(mk.L),nb=t=>rs.filter(r=>r.type===t).length;
-    const statut=!rs.length?'non renseigné':nb('absent')?'absent':nb('don')?'don':'inoccupé';
+    const statut=!rs.length?'non renseigné':nb('absent')?'absent':nb('don')?'don':nb('refus')?'refus':nb('pompier')?'pompier':nb('supprimer')?'à supprimer':'inoccupé';
     const jours=rs.map(r=>jourLocal(r.date)).filter(Boolean).sort();
     feats.push({type:'Feature',
       properties:{id:a.id,adresse:a.adresse||'',statut,logements:rs.length,dons:nb('don'),absents:nb('absent'),inoccupes:nb('inoccupe'),
@@ -545,12 +545,78 @@ document.querySelectorAll('#drawer .mi').forEach(b=>b.addEventListener('click',(
   $('atitre').textContent=b.dataset.titre;
   PAGE=b.id;majBandeauCpt();
 }));
+// ---- Nouveau adresses.geojson pour l'année suivante : on garde les adresses selon les types renseignés
+// + on y ajoute les points posés à la main ou à la position (ils deviennent de vraies adresses)
+const TYPES_ADR=[['don','💶 Don'],['absent','🚪 Absent'],['inoccupe','🏚️ Inoccupé'],['refus','🚫 Refus'],['pompier','🚒 Pompier'],['supprimer','⚫ À supprimer']];
+const typesDe=mk=>new Set(Object.values(mk.L||{}).map(r=>r.type));
+function statsAdr(){
+  const s={t:{},nr:0,man:0};
+  TYPES_ADR.forEach(([t])=>{s.t[t]=0});
+  Object.values(pts).forEach(mk=>{
+    const ts=typesDe(mk);
+    if(mk.gps)s.man++;else if(!ts.size)s.nr++;
+    ts.forEach(t=>{if(t in s.t)s.t[t]++});
+  });
+  return s;
+}
+function blocAdresses(){
+  const s=statsAdr();
+  return `<h3 style="margin-top:28px">Adresses pour l'année prochaine</h3>
+    <p class="note">Génère un nouveau fichier <b>adresses.geojson</b> qui ne garde que les adresses dont un type coché a été renseigné cette année. Tu le déposes ensuite sur GitHub à la place de l'ancien (garde l'ancien de côté).</p>
+    ${TYPES_ADR.map(([t,l])=>`<label class="affc"><input type="checkbox" id="adr-t-${t}"${t==='supprimer'?'':' checked'}> ${l} <span class="note">(${s.t[t]})</span></label>`).join('')}
+    <label class="affc"><input type="checkbox" id="adr-nr"> Garder aussi les adresses non renseignées cette année <span class="note">(${s.nr})</span></label>
+    <label class="affc"><input type="checkbox" id="adr-man" checked> Ajouter les points posés à la main ou à la position <span class="note">(${s.man})</span></label>
+    <p id="adr-res" class="note" style="font-weight:700"></p>
+    <button class="bt" id="dl-adr">⬇️ Télécharger adresses.geojson</button>
+    <p id="adr-msg" class="note"></p>`;
+}
+const choixAdr=()=>({types:new Set(TYPES_ADR.filter(([t])=>$('adr-t-'+t).checked).map(([t])=>t)),nr:$('adr-nr').checked,man:$('adr-man').checked});
+// Une adresse est gardée si au moins un de ses logements a un type coché (ou si elle n'est pas renseignée et que la case est cochée)
+function garderAdr(mk,c){
+  if(mk.gps&&!c.man)return false;
+  const ts=typesDe(mk);
+  if(!ts.size)return c.nr;
+  return [...ts].some(t=>c.types.has(t));
+}
+function majResAdr(){
+  const c=choixAdr();let orig=0,gardees=0,ajoutes=0;
+  Object.values(pts).forEach(mk=>{
+    const k=garderAdr(mk,c);
+    if(mk.gps){if(k)ajoutes++}else{orig++;if(k)gardees++}
+  });
+  $('adr-res').textContent=gardees+' adresses gardées sur '+orig+' ('+(orig-gardees)+' retirées) · '+ajoutes+' point'+(ajoutes>1?'s':'')+' posé'+(ajoutes>1?'s':'')+' à la main ou à la position ajouté'+(ajoutes>1?'s':'');
+}
+async function telechargerAdresses(){
+  const c=choixAdr(),msg=$('adr-msg');
+  let d;
+  try{d=await fetch('adresses.geojson?v='+Date.now()).then(r=>r.json())}catch(e){d=null}
+  if(!d||!Array.isArray(d.features)){msg.textContent="Impossible de relire adresses.geojson : fichier non généré.";msg.style.color='#c62828';return}
+  const feats=d.features.filter(f=>{const mk=f.properties&&pts[f.properties.id];return mk&&!mk.gps?garderAdr(mk,c):c.nr});
+  let ajoutes=0;
+  Object.values(pts).forEach(mk=>{
+    if(!mk.gps||!garderAdr(mk,c))return;
+    const a=mk.a;
+    feats.push({type:'Feature',properties:{id:a.id,adr:a.adresse||''},geometry:{type:'Point',coordinates:[Number(a.lng),Number(a.lat)]}});ajoutes++;
+  });
+  const blob=new Blob([JSON.stringify({...d,features:feats})],{type:'application/geo+json'});
+  const url=URL.createObjectURL(blob),lien=document.createElement('a');
+  lien.href=url;lien.download='adresses.geojson';
+  document.body.appendChild(lien);lien.click();lien.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  msg.textContent='✔ Fichier généré : '+feats.length+' adresses (dont '+ajoutes+' ajoutée'+(ajoutes>1?'s':'')+' depuis les points posés).';msg.style.color='#2e7d32';
+}
+function brancherAdresses(){
+  document.querySelectorAll('#apanel input[id^="adr-"]').forEach(i=>{i.onchange=majResAdr});
+  majResAdr();
+  $('dl-adr').onclick=telechargerAdresses;
+}
 $('ab-couches').onclick=()=>{
   panneau(`<h3>Couches</h3>
     <button class="bt" id="dl-hab">⬇️ Habitations et statuts (GeoJSON)</button>
     <p class="note">Un point par adresse, avec le statut (non renseigné, don, absent, inoccupé), l'équipe, la zone, le nombre de logements et la date de dernière saisie. Sans noms ni montants.</p>
-    <p class="note">Fichier confidentiel : ne pas le publier.</p>`);
+    <p class="note">Fichier confidentiel : ne pas le publier.</p>${blocAdresses()}`);
   $('dl-hab').onclick=exporterCouche;
+  brancherAdresses();
 };
 $('ab-recap').onclick=recap;
 
