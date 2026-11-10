@@ -494,8 +494,9 @@ async function rendreIndiv(){
   const droite=rows.some(r=>r.bloc)?rows.filter(r=>r.bloc===2):rows.slice(nb);
   const bloc=L=>`<table class="cpt ind"><tr><th>Nom</th><th>Fait</th><th>Reste à faire</th></tr>${L.map(r=>`<tr><td>${esc(r.nom)}</td><td>${cell(r.fait)}</td><td>${cell(r.reste)}</td></tr>`).join('')}</table>`;
   $('indiv').innerHTML='<h4 style="margin:4px 0 10px">Décompte des calendriers par personne</h4>'
-    +'<div class="indiv2">'+bloc(gauche)+bloc(droite)+'</div>'
+    +'<div style="display:flex;gap:12px;align-items:flex-start"><div class="indiv2" style="flex:1;min-width:0">'+bloc(gauche)+bloc(droite)+'</div><button class="pdf" id="ind-pdf" title="Imprimer ou enregistrer en PDF">📄 PDF</button></div>'
     +(branche?'':'<p class="note">Mise en page seule pour l\'instant : les chiffres « Fait » et « Reste à faire » apparaîtront quand la lecture de la feuille Recap_pers sera branchée.</p>');
+  $('ind-pdf').onclick=imprimerIndiv;
 }
 function recap(){
   ouverts.clear();
@@ -875,6 +876,18 @@ function imprimerSession(r){
 function imprimerEquipe(){
   const t=$('equipe')&&$('equipe').querySelector('table.eqt');if(!t)return;
   const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Récapitulatif par équipe</title><style>@page{size:landscape;margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;font-size:11px;text-align:center}th{background:#e8eefb}td:nth-child(2),td:nth-child(3),td:nth-child(4){text-align:left}td:nth-child(n+5){text-align:right}</style></head><body><h1>Récapitulatif par équipe</h1><p>Imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+t.outerHTML+'</body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+// Impression du « Récapitulatif individuel » (la boîte d'impression propose « Enregistrer au format PDF »)
+function imprimerIndiv(){
+  const z=$('indiv')&&$('indiv').querySelector('.indiv2');if(!z)return;
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Récapitulatif individuel</title><style>@page{margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}.indiv2{display:flex;gap:24px;align-items:flex-start}table{border-collapse:collapse;flex:1;min-width:0}th,td{border:1px solid #999;padding:4px 8px;font-size:12px}th{background:#e8eefb;text-align:center}td:first-child{text-align:left}td:nth-child(n+2){text-align:right}</style></head><body><h1>Récapitulatif individuel</h1><p>Décompte des calendriers par personne · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+z.outerHTML+'</body></html>';
   const f=document.createElement('iframe');
   f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
   document.body.appendChild(f);
