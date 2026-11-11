@@ -566,6 +566,13 @@ function blocAdresses(){
     ${TYPES_ADR.map(([t,l])=>`<label class="affc"><input type="checkbox" id="adr-t-${t}"${t==='supprimer'?'':' checked'}> ${l} <span class="note">(${s.t[t]})</span></label>`).join('')}
     <label class="affc"><input type="checkbox" id="adr-nr"> Garder aussi les adresses non renseignées cette année <span class="note">(${s.nr})</span></label>
     <label class="affc"><input type="checkbox" id="adr-man" checked> Ajouter les points posés à la main ou à la position <span class="note">(${s.man})</span></label>
+    <p class="note" style="margin-top:16px"><b>Informations à ajouter à chaque adresse</b> (pour QGIS) :</p>
+    <label class="affc"><input type="checkbox" id="adr-p-nom"> Nom</label>
+    <label class="affc"><input type="checkbox" id="adr-p-type"> Type</label>
+    <label class="affc"><input type="checkbox" id="adr-p-equipe"> Équipe</label>
+    <label class="affc"><input type="checkbox" id="adr-p-zone"> Zone (ville / campagne)</label>
+    <p class="note">Dès qu'une information est cochée, le fichier prend un autre nom (adresses_QGIS…) pour ne jamais remplacer par erreur celui de l'application. Pour une adresse à plusieurs logements, les noms et les types sont séparés par « | ».</p>
+    <p id="adr-conf" class="note" style="color:#b71c1c;font-weight:700;display:none">⚠ Le nom est une donnée personnelle : ne dépose jamais ce fichier sur GitHub (l'application a besoin de adresses.geojson sans cette information).</p>
     <p id="adr-res" class="note" style="font-weight:700"></p>
     <button class="bt" id="dl-adr">⬇️ Télécharger adresses.geojson</button>
     <p id="adr-msg" class="note"></p>`;
@@ -586,28 +593,57 @@ function majResAdr(){
   });
   $('adr-res').textContent=gardees+' adresses gardées sur '+orig+' ('+(orig-gardees)+' retirées) · '+ajoutes+' point'+(ajoutes>1?'s':'')+' posé'+(ajoutes>1?'s':'')+' à la main ou à la position ajouté'+(ajoutes>1?'s':'');
 }
+const propsChoisies=()=>['nom','type','equipe','zone'].filter(k=>$('adr-p-'+k).checked);
+function nomFichierAdr(){
+  const P=propsChoisies();
+  return !P.length?'adresses.geojson':P.includes('nom')?'adresses_QGIS_confidentiel.geojson':'adresses_QGIS.geojson';
+}
+function majConf(){
+  const P=propsChoisies();
+  $('adr-conf').style.display=P.includes('nom')?'':'none';
+  $('dl-adr').textContent='⬇️ Télécharger '+nomFichierAdr();
+}
+// Informations d'une adresse, d'après les saisies de l'année (un logement = une valeur)
+function infosAdr(mk,P){
+  const L=Object.keys(mk.L||{}).map(Number).sort((a,b)=>a-b).map(n=>mk.L[n]);
+  const joint=f=>{const v=L.map(f);return v.every(x=>!x)?'':v.join(' | ')};
+  const o={};
+  if(P.includes('nom'))o.nom=joint(r=>r.nom||'');
+  if(P.includes('type'))o.type=joint(r=>r.type||'');
+  if(P.includes('equipe')||P.includes('zone')){
+    const a=equipe(mk.a);
+    if(P.includes('equipe'))o.equipe=a.eq===undefined||a.eq===''?null:a.eq;
+    if(P.includes('zone'))o.zone=a.zone||'';
+  }
+  return o;
+}
 async function telechargerAdresses(){
   const c=choixAdr(),msg=$('adr-msg');
   let d;
   try{d=await fetch('adresses.geojson?v='+Date.now()).then(r=>r.json())}catch(e){d=null}
   if(!d||!Array.isArray(d.features)){msg.textContent="Impossible de relire adresses.geojson : fichier non généré.";msg.style.color='#c62828';return}
-  const feats=d.features.filter(f=>{const mk=f.properties&&pts[f.properties.id];return mk&&!mk.gps?garderAdr(mk,c):c.nr});
+  const P=propsChoisies();
+  const feats=d.features.filter(f=>{const mk=f.properties&&pts[f.properties.id];return mk&&!mk.gps?garderAdr(mk,c):c.nr}).map(f=>{
+    if(!P.length)return f;
+    const mk=(f.properties&&pts[f.properties.id])||{L:{},a:{lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}};
+    return {...f,properties:{...f.properties,...infosAdr(mk,P)}};
+  });
   let ajoutes=0;
   Object.values(pts).forEach(mk=>{
     if(!mk.gps||!garderAdr(mk,c))return;
     const a=mk.a;
-    feats.push({type:'Feature',properties:{id:a.id,adr:a.adresse||''},geometry:{type:'Point',coordinates:[Number(a.lng),Number(a.lat)]}});ajoutes++;
+    feats.push({type:'Feature',properties:{id:a.id,adr:a.adresse||'',...infosAdr(mk,P)},geometry:{type:'Point',coordinates:[Number(a.lng),Number(a.lat)]}});ajoutes++;
   });
   const blob=new Blob([JSON.stringify({...d,features:feats})],{type:'application/geo+json'});
   const url=URL.createObjectURL(blob),lien=document.createElement('a');
-  lien.href=url;lien.download='adresses.geojson';
+  lien.href=url;lien.download=nomFichierAdr();
   document.body.appendChild(lien);lien.click();lien.remove();
   setTimeout(()=>URL.revokeObjectURL(url),10000);
-  msg.textContent='✔ Fichier généré : '+feats.length+' adresses (dont '+ajoutes+' ajoutée'+(ajoutes>1?'s':'')+' depuis les points posés).';msg.style.color='#2e7d32';
+  msg.textContent='✔ '+nomFichierAdr()+' généré : '+feats.length+' adresses (dont '+ajoutes+' ajoutée'+(ajoutes>1?'s':'')+' depuis les points posés).';msg.style.color='#2e7d32';
 }
 function brancherAdresses(){
-  document.querySelectorAll('#apanel input[id^="adr-"]').forEach(i=>{i.onchange=majResAdr});
-  majResAdr();
+  document.querySelectorAll('#apanel input[id^="adr-"]').forEach(i=>{i.onchange=()=>{majResAdr();majConf()}});
+  majResAdr();majConf();
   $('dl-adr').onclick=telechargerAdresses;
 }
 $('ab-couches').onclick=()=>{
