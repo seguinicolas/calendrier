@@ -14,11 +14,25 @@
   #bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;gap:8px;padding:8px;box-sizing:border-box;background:#222}
   #bar button{flex:1;min-width:0;padding:0 4px;font-size:15px;font-weight:700;border:0;border-radius:12px;color:#fff}
   #don{background:#2e9e4f}#abs{background:#e08a00}#refus{background:#d32f2f}#liste{background:#1a73e8}
+  #ses{background:#5e35b1}
+  #don,#abs,#refus{display:none}
+  body.ses #don,body.ses #abs,body.ses #refus{display:block}
+  body.ses #ses{display:none}
   #eqsel{position:absolute;top:8px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
   #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
   #modal input,#modal select{font-size:20px;padding:8px}
   #modal .row{display:flex;gap:8px}#modal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
+  #smodal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
+  #smodal .box{background:#fff;padding:18px;border-radius:14px;width:80%;max-width:320px;max-height:92%;overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
+  #smodal input,#smodal select{font-size:18px;padding:8px}
+  #smodal .row{display:flex;gap:8px}#smodal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
+  #sesbar{display:none;position:absolute;top:104px;left:8px;right:8px;z-index:1000;background:#5e35b1;color:#fff;padding:6px 10px;border-radius:10px;font-size:13px;box-shadow:0 1px 4px #0006;align-items:center;gap:8px}
+  body.ses #sesbar{display:flex}
+  body.ses #aide{top:152px}
+  #sestxt{flex:1;min-width:0}
+  #sestxt div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #sesclose{border:0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;background:#fff;color:#5e35b1}
 #filtres{position:absolute;bottom:98px;left:8px;right:8px;z-index:1000;display:flex;flex-wrap:wrap;gap:6px}
 #filtres button{border:2px solid;border-radius:16px;padding:5px 10px;font-size:13px;font-weight:700;background:#fff;color:#333}
 #filtres [data-t=don]{border-color:#2e9e4f}#filtres [data-t=absent]{border-color:#e08a00}#filtres [data-t=inoccupe]{border-color:#8e24aa}#filtres [data-t=refus]{border-color:#d32f2f}
@@ -50,17 +64,30 @@
 <button id="manuel">➕ Point</button><div id="zoomhint">Zoomez pour afficher les points</div>
 <div id="aide">Touchez la carte pour placer le point</div>
 <button id="recapbtn">📊 Récap</button>
+<div id="sesbar"><div id="sestxt"></div><button id="sesclose">Fermer</button></div>
 <div id="recap" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
   <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><select id="rsel" style="font-size:16px;padding:6px 8px;max-width:65%"><option value="">Toutes les tournées</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
   <div id="rtab" style="padding:12px"></div>
 </div>
 <div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button><button data-t="refus">🚫 Refus</button></div>
 <div id="bar">
+  <button id="ses">📅 Ouvrir une session de calendrier</button>
   <button id="don">💶 Don reçu</button>
   <button id="abs">🚪 Absent</button>
   <button id="refus">🚫 Refus</button>
   <button id="liste">📋 Absents</button>
 </div>
+<div id="smodal"><div class="box">
+  <b>Session de calendrier</b>
+  <select id="s_t"><option value="">N° de tournée</option><option value="1">Tournée 1</option><option value="2">Tournée 2</option><option value="3">Tournée 3</option><option value="4">Tournée 4</option><option value="5">Tournée 5</option><option value="6">Tournée 6</option><option value="7">Tournée 7</option><option value="8">Tournée 8</option><option value="9">Tournée 9</option><option value="10">Tournée 10</option><option value="11">Tournée 11</option><option value="12">Tournée 12</option><option value="13">Tournée 13</option></select>
+  <select id="s_z"><option value="">Ville ou campagne</option><option value="ville">Ville</option><option value="campagne">Campagne</option></select>
+  <input id="s_e1" type="text" list="noms" placeholder="Équipier 1" autocomplete="off">
+  <input id="s_e2" type="text" list="noms" placeholder="Équipier 2" autocomplete="off">
+  <input id="s_e3" type="text" list="noms" placeholder="Équipier 3" autocomplete="off">
+  <select id="s_ty"><option value="classique">Type : classique</option><option value="bal">Type : boîte aux lettres</option></select>
+  <datalist id="noms"></datalist>
+  <div class="row"><button id="s_ok" style="background:#5e35b1;color:#fff">Ouvrir</button><button id="s_cancel">Annuler</button></div>
+</div></div>
 <div id="modal"><div class="box">
   <b id="titre">Don reçu</b>
   <input id="nom" type="text" placeholder="Nom">
@@ -95,6 +122,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 const COUL=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6','#bcf60c','#008080','#9a6324','#800000','#808000','#000075'];
 // Secteur (équipe) d'un point : croisement avec les polygones
 const SECT=[];
+const SECT_PRETS=[];   // chargements des secteurs : les adresses attendent qu'ils soient terminés
 function dans(pt,ring){let c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
 function secteurDe(lng,lat){
   const pt=[lng,lat];
@@ -109,7 +137,7 @@ function equipe(a){if(a.eq===undefined&&SECT.length){const z=secteurDe(a.lng,a.l
 function ligneEq(a){equipe(a);return a.eq===undefined?'':(a.eq!==''?`Équipe ${esc(a.eq)} · ${esc(a.zone)}`:'Secteur non défini')}
 function secteurs(url,zone){
   const g=L.layerGroup().addTo(map);
-  fetch(url+'?v='+Date.now()).then(r=>r.json()).then(d=>{
+  SECT_PRETS.push(fetch(url+'?v='+Date.now()).then(r=>r.json()).then(d=>{
     const feats=(d.features||[]).filter(f=>f.geometry&&f.geometry.coordinates&&f.geometry.coordinates.length&&f.properties&&f.properties.equipe!=null);
     feats.forEach(f=>{const g=f.geometry,P=g.type==='MultiPolygon'?g.coordinates:[g.coordinates];SECT.push({zone,equipe:f.properties.equipe,polys:P.map(rings=>{const xs=rings[0].map(q=>q[0]),ys=rings[0].map(q=>q[1]);return{rings,b:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]}})})});
     L.geoJSON({type:'FeatureCollection',features:feats},{
@@ -117,7 +145,7 @@ function secteurs(url,zone){
       style:f=>{const c=COUL[(f.properties.equipe-1)%COUL.length];return{color:c,weight:2,fillColor:c,fillOpacity:.25}},
       onEachFeature:(f,l)=>l.bindTooltip('Éq. '+f.properties.equipe,{permanent:true,direction:'center',className:'eq'})
     }).addTo(g);
-  }).catch(()=>{});
+  }).catch(()=>{}));
   return g;
 }
 const gAdr=L.featureGroup();
@@ -135,11 +163,11 @@ navigator.geolocation.watchPosition(p=>{
 
 const pts={};
 const touched=new Set();
-const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa',refus:'#d32f2f'};
+const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa',refus:'#d32f2f',pompier:'#1a73e8',supprimer:'#000'};
 const key=r=>r.ida||('p'+r.lat+','+r.lng);
 const carre=col=>L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid #fff;box-shadow:0 0 3px #000"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
-// Couleur d'un point selon ses logements : orange si un absent, sinon vert si un don, sinon rouge si un refus, sinon violet
-const couleurMk=mk=>{const t=Object.values(mk.L).map(r=>r.type);return t.includes('absent')?COLS.absent:t.includes('don')?COLS.don:t.includes('refus')?COLS.refus:t.length?COLS.inoccupe:'#777'};
+// Couleur d'un point selon ses logements : orange si un absent, sinon vert si un don, sinon rouge si un refus, sinon bleu si un pompier, sinon violet
+const couleurMk=mk=>{const t=Object.values(mk.L).map(r=>r.type);return t.includes('absent')?COLS.absent:t.includes('don')?COLS.don:t.includes('refus')?COLS.refus:t.includes('pompier')?COLS.pompier:t.includes('supprimer')?COLS.supprimer:t.length?COLS.inoccupe:'#777'};
 function addMarker(r){
   if(r.lat===''||r.lng===''||r.lat==null||r.lng==null)return;
   const k=key(r),base=k.split('#')[0],n=k.includes('#')?(+k.split('#')[1]||1):1;
@@ -154,7 +182,7 @@ function addMarker(r){
   mk.D=mk.D||{};
   if(r.type==='don'){if(!prev||prev.type!=='don'||!mk.D[n])mk.D[n]=r.date}else delete mk.D[n];
   const col=couleurMk(mk);
-  if(mk.gps)mk.setIcon(carre(col));else mk.setStyle({fillColor:col,radius:8});
+  if(mk.gps)mk.setIcon(carre(col));else mk.setStyle({fillColor:col,radius:rayon()});
   if(mk.gps&&r.adresse)mk.a.adresse=r.adresse;
   const i=items.findIndex(x=>key(x.r)===k);if(i>=0)items.splice(i,1);
   items.push({r,mk,n});touched.add(mk);majBtn();applyFilters();
@@ -185,6 +213,60 @@ function needPos(){if(!pos){alert('Position GPS pas encore trouvée');return fal
 const esc=s=>String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const $=id=>document.getElementById(id);
 
+// Session de calendrier (BETA) : tournée, secteur, équipiers et type, gardés sur le téléphone uniquement
+let SES=null;
+try{SES=JSON.parse(localStorage.getItem('ses')||'null')}catch(e){}
+const nomZone=z=>z==='ville'?'Ville':'Campagne';
+const TYPES={classique:'Classique',bal:'Boîte aux lettres'};
+function majSes(){
+  document.body.classList.toggle('ses',!!SES);
+  if(SES)$('sestxt').innerHTML=`<div><b>Tournée ${esc(SES.tournee)} · ${nomZone(SES.zone)} · ${esc(TYPES[SES.type]||SES.type)}</b></div><div>${esc(SES.equipiers.join(', '))}</div>`;
+}
+function noms(){try{return JSON.parse(localStorage.getItem('noms')||'[]')}catch(e){return[]}}
+$('ses').onclick=()=>{
+  let last={};try{last=JSON.parse(localStorage.getItem('sesLast')||'{}')}catch(e){}
+  $('s_t').value=$('eqsel').value||last.tournee||'';
+  $('s_z').value=last.zone||'';
+  const eq=last.equipiers||[];
+  $('s_e1').value=eq[0]||'';$('s_e2').value=eq[1]||'';$('s_e3').value=eq[2]||'';
+  $('s_ty').value=last.type||'classique';
+  $('noms').innerHTML=noms().map(n=>`<option value="${esc(n).replace(/"/g,'&quot;')}">`).join('');
+  $('smodal').style.display='flex';
+};
+$('s_cancel').onclick=()=>$('smodal').style.display='none';
+$('s_ok').onclick=()=>{
+  const t=$('s_t').value,z=$('s_z').value,ty=$('s_ty').value;
+  const eq=[$('s_e1').value,$('s_e2').value,$('s_e3').value].map(x=>x.trim());
+  if(!t){alert('N° de tournée ?');return}
+  if(!z){alert('Ville ou campagne ?');return}
+  if(!eq[0]){alert('Équipier 1 ?');return}
+  const pris=eq.filter(Boolean).map(x=>x.toLowerCase());
+  if(new Set(pris).size!==pris.length){alert('Un équipier ne peut figurer qu\'une seule fois');return}
+  SES={tournee:t,zone:z,type:ty,equipiers:eq.filter(Boolean),debut:new Date().toISOString()};
+  try{
+    localStorage.setItem('ses',JSON.stringify(SES));
+    localStorage.setItem('sesLast',JSON.stringify(SES));
+    const l=noms();SES.equipiers.forEach(n=>{if(!l.some(x=>x.toLowerCase()===n.toLowerCase()))l.push(n)});
+    localStorage.setItem('noms',JSON.stringify(l));
+  }catch(e){}
+  $('smodal').style.display='none';
+  majSes();
+};
+$('sesclose').onclick=()=>{
+  if(!confirm('Fermer la session ?'))return;
+  SES=null;try{localStorage.removeItem('ses')}catch(e){}
+  stopPlacement();$('modal').style.display='none';map.closePopup();majSes();
+};
+// Signale un point situé dans une autre tournée que celle de la session
+function verifTournee(a){
+  if(!SECT.length)return true;
+  const p=a?{lat:a.lat,lng:a.lng}:pos;
+  const z=eqPos(p.lat,p.lng);
+  if(String(z.equipe)===String(SES.tournee)&&z.zone===SES.zone)return true;
+  const ou=z.equipe!==''?`dans la tournée ${z.equipe} (${z.zone})`:'hors de toutes les tournées tracées';
+  return confirm(`⚠️ Ce point est ${ou}, mais la session est la tournée ${SES.tournee} (${SES.zone}).\n\nContinuer quand même ?`);
+}
+
 // Adresse automatique (OpenStreetMap / Nominatim)
 async function adresse(p){
   try{
@@ -199,14 +281,16 @@ async function adresse(p){
 
 let cur=null;
 function ouvrir(type,a,n,rec){
+  if(!SES){alert('Ouvrez d\'abord une session de calendrier');return}
   if(!a&&!needPos())return;
+  if(!verifTournee(a))return;
   n=n||1;
   const ida=a?(n>1?a.id+'#'+n:a.id):'';
-  if(type==='inoccupe'&&a){save({type:'inoccupe',ida,lat:a.lat,lng:a.lng,nom:rec?rec.nom||'':'',adresse:a.adresse,montant:0,mode:'',note:rec?rec.note||'':''});return}
+  if((type==='inoccupe'||type==='supprimer')&&a){save({type,ida,lat:a.lat,lng:a.lng,nom:rec?rec.nom||'':'',adresse:a.adresse,montant:0,mode:'',note:rec?rec.note||'':''});return}
   cur=a?{lat:a.lat,lng:a.lng,type,ida}:{...pos,type};
   ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
   const don=type==='don';
-  $('titre').textContent=(don?'Don reçu':type==='refus'?'Refus':'Personne absente')+(n>1?' — Logement '+n:'');
+  $('titre').textContent=(don?'Don reçu':type==='refus'?'Refus':type==='pompier'?'Pompier':'Personne absente')+(n>1?' — Logement '+n:'');
   $('montant').style.display=$('mode').style.display=don?'':'none';
   $('modal').style.display='flex';
   $('nom').focus();
@@ -320,6 +404,7 @@ let placement=false;
 function stopPlacement(){placement=false;$('manuel').classList.remove('on');$('aide').style.display='none';map.getContainer().style.cursor=''}
 $('manuel').onclick=()=>{
   if(placement){stopPlacement();return}
+  if(!SES){alert('Ouvrez d\'abord une session de calendrier');return}
   placement=true;$('manuel').classList.add('on');$('aide').style.display='block';
   map.getContainer().style.cursor='crosshair';map.closePopup();
 };
@@ -332,9 +417,12 @@ map.on('click',e=>{
 
 // Affichage selon l'échelle : points et carrés visibles à partir du zoom ZMIN
 const ZMIN=15;
+const ZGROS=17;   // à partir de ce zoom (niveau des rues) les points d'adresse passent de 5 à 8 px
+const rayon=()=>map.getZoom()>=ZGROS?8:5;
+function majRayons(){const r=rayon();Object.values(pts).forEach(mk=>{if(!mk.gps)mk.setRadius(r)})}
 const zoomOk=()=>map.getZoom()>=ZMIN;
 function majAdr(){(map.hasLayer(gAdrCtl)&&zoomOk())?map.addLayer(gAdr):map.removeLayer(gAdr)}
-function majZoom(){$('zoomhint').style.display=zoomOk()?'none':'block';majAdr();applyFilters()}
+function majZoom(){$('zoomhint').style.display=zoomOk()?'none':'block';majRayons();majAdr();applyFilters()}
 map.on('zoomend',majZoom);
 gAdrCtl.on('add remove',majAdr);
 
@@ -365,12 +453,13 @@ function popupAdr(a,gps){
   });
   return d;
 }
-const LAB={don:'💶 Don',absent:'🚪 Absent',inoccupe:'🏚️ Inoccupé',refus:'🚫 Refus'},NOMS={don:'Don',absent:'Absent',inoccupe:'Inoccupé',refus:'Refus'};
+const LAB={don:'💶 Don',absent:'🚪 Absent',inoccupe:'🏚️ Inoccupé',refus:'🚫 Refus',pompier:'🚒 Pompier',supprimer:'⚫ À supprimer'},NOMS={don:'Don',absent:'Absent',inoccupe:'Inoccupé',refus:'Refus',pompier:'Pompier',supprimer:'À supprimer'};
 const statutTxt=r=>(r.type==='don'?r.montant+' € ('+r.mode+')':NOMS[r.type])+(r.note?' — '+r.note:'');
 function popupMk(mk,extra){
   const a=mk.a;
+  const edit=!!SES; // hors session : consultation seulement
   const d=document.createElement('div');
-  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}`;
+  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}`+(edit?'':'<span style="color:#5e35b1">📅 Ouvrez une session pour saisir</span>');
   const nums=Object.keys(mk.L).map(Number);
   if(extra&&!nums.includes(extra))nums.push(extra);
   if(!nums.length)nums.push(1);
@@ -386,12 +475,13 @@ function popupMk(mk,extra){
       bloc.insertAdjacentHTML('beforeend',`<span style="color:#555">🔒 Don du ${esc(jr.split('-').reverse().join('/'))} — non modifiable</span>`);
       d.appendChild(bloc);return;
     }
-    ['don','absent','inoccupe','refus'].filter(t=>!mk.gps||t!=='inoccupe').forEach(t=>{
+    if(!edit){d.appendChild(bloc);return}
+    ['don','absent','inoccupe','refus','pompier','supprimer'].filter(t=>!mk.gps||(t!=='inoccupe'&&t!=='pompier'&&t!=='supprimer')).forEach(t=>{
       const act=rec&&rec.type===t,b=document.createElement('button');
       b.textContent=LAB[t];
       b.style.cssText=`margin:4px 4px 0 0;padding:8px 10px;font-size:15px;border:2px solid ${COLS[t]};border-radius:8px;background:${act?COLS[t]:'#fff'};color:${act?'#fff':'#333'}`;
       b.onclick=()=>{
-        if(act&&t==='inoccupe')return;
+        if(act&&(t==='inoccupe'||t==='supprimer'))return;
         if(rec&&!act&&!confirm('Modifier ce logement ?\n'+(rec.nom||'(sans nom)')+' : '+NOMS[rec.type]+' → '+NOMS[t]))return;
         map.closePopup();ouvrir(t,a,n,rec);
       };
@@ -399,7 +489,7 @@ function popupMk(mk,extra){
     });
     d.appendChild(bloc);
   });
-  if(Object.keys(mk.L).length&&!extra){
+  if(edit&&Object.keys(mk.L).length&&!extra){
     const b=document.createElement('button');
     b.textContent='➕ Ajouter un logement';
     b.style.cssText='margin-top:10px;padding:8px 10px;font-size:15px;width:100%;border:2px dashed #1a73e8;border-radius:8px;background:#fff;color:#1a73e8';
@@ -414,8 +504,9 @@ function chargerAdresses(){
   return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
     d.features.forEach(f=>{
       const [lng,lat]=f.geometry.coordinates;
+      if(SECT.length&&!secteurDe(lng,lat))return;   // adresse hors de toute tournée : point non chargé (si les secteurs n'ont pas pu être lus, on garde tout)
       const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
-      const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
+      const mk=L.circleMarker([lat,lng],{radius:rayon(),color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
       mk.a=a;mk.L={};pts[a.id]=mk;
     });
   }).catch(()=>{});
@@ -423,7 +514,7 @@ function chargerAdresses(){
 // Chargement initial puis actualisation automatique (1 min) des saisies des autres
 let vus=0,encours=false;
 const traiter=rows=>rows.forEach(r=>{try{addMarker(r)}catch(e){}});
-Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.reduce((m,r)=>Math.max(m,Number(r.maj)||0),0);traiter(rows)});
+Promise.all([Promise.all(SECT_PRETS).then(chargerAdresses),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.reduce((m,r)=>Math.max(m,Number(r.maj)||0),0);traiter(rows)});
 function actualiser(){
   if(encours||document.hidden||!navigator.onLine)return;
   encours=true;flush();
@@ -434,6 +525,7 @@ function actualiser(){
 }
 setInterval(actualiser,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualiser()});
+majSes();
 majZoom();
 flush();
 window.addEventListener('online',flush);
