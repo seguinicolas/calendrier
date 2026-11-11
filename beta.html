@@ -26,7 +26,7 @@
   #smodal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #smodal .box{background:#fff;padding:18px;border-radius:14px;width:80%;max-width:320px;max-height:92%;overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
   #smodal input,#smodal select{font-size:18px;padding:8px}
-  #smodal input[readonly]{background:#eee;color:#555}
+  #smodal select:disabled{background:#eee;color:#555;opacity:1}
   #s_info{font-size:12px;color:#666}
   #smodal .row{display:flex;gap:8px}#smodal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
   #sesbar{display:none;position:absolute;top:8px;left:8px;right:54px;z-index:1000;background:#5e35b1;color:#fff;padding:6px 10px;border-radius:10px;font-size:13px;box-shadow:0 1px 4px #0006;align-items:center;gap:8px}
@@ -78,12 +78,11 @@
   <b>Session de calendrier</b>
   <select id="s_t"><option value="">N° de tournée</option><option value="1">Tournée 1</option><option value="2">Tournée 2</option><option value="3">Tournée 3</option><option value="4">Tournée 4</option><option value="5">Tournée 5</option><option value="6">Tournée 6</option><option value="7">Tournée 7</option><option value="8">Tournée 8</option><option value="9">Tournée 9</option><option value="10">Tournée 10</option><option value="11">Tournée 11</option><option value="12">Tournée 12</option><option value="13">Tournée 13</option></select>
   <select id="s_z"><option value="">Ville ou campagne</option><option value="ville">Ville</option><option value="campagne">Campagne</option></select>
-  <input id="s_e1" type="text" list="noms" placeholder="Équipier 1" autocomplete="off">
-  <input id="s_e2" type="text" list="noms" placeholder="Équipier 2" autocomplete="off">
-  <input id="s_e3" type="text" list="noms" placeholder="Équipier 3" autocomplete="off">
+  <select id="s_e1"></select>
+  <select id="s_e2"></select>
+  <select id="s_e3"></select>
   <select id="s_ty"><option value="classique">Type : classique</option><option value="bal">Type : boîte aux lettres</option></select>
   <small id="s_info"></small>
-  <datalist id="noms"></datalist>
   <div class="row"><button id="s_ok" style="background:#5e35b1;color:#fff">Ouvrir</button><button id="s_cancel">Annuler</button></div>
 </div></div>
 <div id="modal"><div class="box">
@@ -226,10 +225,30 @@ function noms(){try{return JSON.parse(localStorage.getItem('noms')||'[]')}catch(
 let PARAM=null,PERS=[],paramEssai=false;
 try{PARAM=JSON.parse(localStorage.getItem('param')||'null')}catch(e){}
 try{PERS=JSON.parse(localStorage.getItem('pers')||'[]')}catch(e){}
+const EQ_IDS=['s_e1','s_e2','s_e3'];
+function optEq(sel,v,txt){const o=document.createElement('option');o.value=v;o.textContent=txt!=null?txt:v;sel.appendChild(o)}
+// Remplit les listes d'équipiers : personnel (Parametres), noms déjà saisis, valeur actuelle, puis « Autre… »
 function majListe(){
   const l=PERS.slice();noms().forEach(n=>{if(!l.some(x=>x.toLowerCase()===n.toLowerCase()))l.push(n)});
-  $('noms').innerHTML=l.map(n=>`<option value="${esc(n).replace(/"/g,'&quot;')}">`).join('');
+  EQ_IDS.forEach((id,i)=>{
+    const e=$(id),cur=e.value;
+    e.innerHTML='';
+    optEq(e,'','— Équipier '+(i+1)+' —');
+    const tous=l.slice();if(cur&&cur!=='__autre'&&!tous.includes(cur))tous.push(cur);
+    tous.forEach(n=>optEq(e,n));
+    optEq(e,'__autre','✏️ Autre…');
+    e.value=cur==='__autre'?'':cur;
+  });
 }
+function setEq(id,v){
+  v=v||'';const e=$(id);
+  if(v&&![...e.options].some(o=>o.value===v)){const o=document.createElement('option');o.value=v;o.textContent=v;e.insertBefore(o,e.lastChild)}
+  e.value=v;
+}
+EQ_IDS.forEach(id=>{$(id).onchange=()=>{
+  const e=$(id);
+  if(e.value==='__autre'){const n=(prompt('Nom de l\'équipier ?')||'').trim();e.value='';if(n)setEq(id,n)}
+};});
 let PARAM_ERR='';
 function chargerParam(){
   if(paramEssai)return Promise.resolve();
@@ -251,22 +270,22 @@ function chargerParam(){
 }
 function remplirEq(){
   const l=(PARAM&&PARAM[$('s_t').value])||[];
-  ['s_e1','s_e2','s_e3'].forEach((id,i)=>{$(id).value=l[i]||''});
+  EQ_IDS.forEach((id,i)=>setEq(id,l[i]));
 }
 // Boîte aux lettres : équipiers 1 et 2 repris de Parametres et non modifiables (si la feuille en donne)
 function majVerrou(){
   const t=$('s_t').value,bal=$('s_ty').value==='bal',l=(PARAM&&PARAM[t])||[];
   let verr=false;
-  [0,1].forEach(i=>{const e=$('s_e'+(i+1));if(bal&&l[i]){e.value=l[i];e.readOnly=true;verr=true}else e.readOnly=false});
-  $('s_e3').readOnly=false;
+  [0,1].forEach(i=>{const e=$('s_e'+(i+1));if(bal&&l[i]){setEq('s_e'+(i+1),l[i]);e.disabled=true;verr=true}else e.disabled=false});
+  $('s_e3').disabled=false;
   $('s_info').textContent=!PARAM?'Liste des équipiers indisponible'+(PARAM_ERR?' — '+PARAM_ERR:'')+' : saisie manuelle.':verr?'Équipiers 1 et 2 : affectés à la tournée (non modifiables en boîte aux lettres).':(t&&!l.length)?'Aucun équipier noté pour la tournée '+t+' ('+Object.keys(PARAM).length+' tournées lues dans Parametres).':'';
 }
 $('s_t').onchange=()=>{remplirEq();majVerrou()};
 $('s_ty').onchange=majVerrou;
 $('ses').onclick=()=>{
   $('s_t').value='';$('s_z').value='';$('s_ty').value='classique';
-  ['s_e1','s_e2','s_e3'].forEach(id=>{$(id).value=''});
-  majVerrou();majListe();
+  majListe();EQ_IDS.forEach(id=>setEq(id,''));
+  majVerrou();
   $('smodal').style.display='flex';
   chargerParam().then(()=>{if($('smodal').style.display==='flex'){majListe();majVerrou()}});
 };
