@@ -66,8 +66,8 @@ table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table
 table.cpt tr.lg.ok td{background:#cdeccd}
 table.cpt tr.lg.ok:hover td{background:#bfe5bf}
 table.cpt tr.sel td{box-shadow:inset 0 2px 0 #1a73e8,inset 0 -2px 0 #1a73e8}
-#cpt-actu,#cpt-fermer,#cpt-histo{white-space:nowrap;height:36px;padding:0 12px;border:1px solid #ffffff88;border-radius:8px;background:transparent;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
-#cpt-actu:hover,#cpt-actu:focus,#cpt-fermer:hover,#cpt-fermer:focus,#cpt-histo:hover,#cpt-histo:focus{background:#ffffff22}
+#cpt-actu,#cpt-fermer,#cpt-histo,#cpt-poches{white-space:nowrap;height:36px;padding:0 12px;border:1px solid #ffffff88;border-radius:8px;background:transparent;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#cpt-actu:hover,#cpt-actu:focus,#cpt-fermer:hover,#cpt-fermer:focus,#cpt-histo:hover,#cpt-histo:focus,#cpt-poches:hover,#cpt-poches:focus{background:#ffffff22}
 #cpt-histo{line-height:1.15;font-size:13px}
 #cpt-histo small{display:block;font-size:11px;font-weight:400}
 /* Fenêtre « Historique des comptages » */
@@ -84,6 +84,10 @@ table.cpt.hist th{position:sticky;top:0;z-index:1;text-align:center;box-shadow:0
 table.cpt.hist td:nth-child(1),table.cpt.hist td:nth-child(2),table.cpt.hist td:last-child{text-align:center}
 button.pdf{border:1px solid #c62828;color:#c62828;background:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer}
 button.pdf:hover{background:#ffeaea}
+#histo .tete button.pdf{height:36px;padding:0 14px;border:1px solid #ffffff88;color:#fff;background:transparent;font-size:14px;border-radius:8px}
+#histo .tete button.pdf:hover{background:#ffffff22}
+.pcf{display:inline-block;margin:0 16px 10px 0;font-size:13px;color:#33475b}
+.pcf select{display:block;margin-top:2px;padding:6px 8px;font-size:14px;border:1px solid #9fb7c9;border-radius:6px;background:#fff;min-width:150px}
 #cpt-actu:disabled,#cpt-fermer:disabled{opacity:.5;cursor:default}
 #cpt-table table.cpt th{position:sticky;top:0;z-index:1;box-shadow:0 1px 0 #cfd6e4}
 /* Flèches de tri ▲▼ dans les entêtes des tableaux du Comptage */
@@ -176,9 +180,9 @@ table.cpt.eqt td:first-child{text-align:center}
 </head>
 <body>
 <div id="map"></div>
-<div id="abar"><b id="atitre">Calendriers — Administration</b><div style="display:flex;align-items:center;gap:6px"><button id="cpt-fermer" style="display:none">Fermer session de comptage</button><button id="cpt-histo" style="display:none">📜 Historique des comptages<small>suivi de l'année en cours</small></button><button id="cpt-actu" style="display:none">🔄 Actualiser</button><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div></div>
+<div id="abar"><b id="atitre">Calendriers — Administration</b><div style="display:flex;align-items:center;gap:6px"><button id="cpt-fermer" style="display:none">Fermer session de comptage</button><button id="cpt-poches" style="display:none">🧾 Comptage des poches</button><button id="cpt-histo" style="display:none">📜 Historique des comptages<small>suivi de l'année en cours</small></button><button id="cpt-actu" style="display:none">🔄 Actualiser</button><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div></div>
 <div id="veil"></div>
-<div id="histo"><div class="tete"><b>Historique des comptages — suivi de l'année en cours</b><button id="histo-fermer">Fermer</button></div><div class="corps" id="histo-corps"></div></div>
+<div id="histo"><div class="tete"><b id="histo-titre">Historique des comptages — suivi de l'année en cours</b><span style="display:flex;gap:8px"><button class="pdf" id="histo-pdf" style="display:none">📄 PDF</button><button id="histo-fermer">Fermer</button></span></div><div class="corps" id="histo-corps"></div></div>
 <nav id="drawer" aria-label="Menu d'administration">
   <div class="tete"><span>Menu</span><button id="fermer" aria-label="Fermer le menu">×</button></div>
   <button class="mi" id="ab-couches" data-titre="Téléchargement des couches">⬇️ Téléchargement des couches</button>
@@ -928,7 +932,7 @@ async function majTotSession(){
   $('cpttotrow').innerHTML=[v[0],v[1],fmt(v[2]),...v.slice(3,11),fmt(v[11]),fmt(v[12]),v[13],fmt(v[14])].map(x=>'<td>'+x+'</td>').join('');
 }
 const nouvelIdSession=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'S'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
-function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-histo').style.display=s?'':'none';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
+function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-poches').style.display=s?'':'none';$('cpt-histo').style.display=s?'':'none';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
 function afficherCpt(){$('apanel').style.display='none';$('apanelcpt').style.display='';$('admin').scrollTop=0;$('admin').querySelector('.in').classList.add('large')}
 function panneauCpt(html){$('apanelcpt').innerHTML=html;afficherCpt()}
 $('cpt-fermer').onclick=()=>{
@@ -952,6 +956,7 @@ function rendreHisto(){
   z.querySelectorAll('button.pdf').forEach(b=>b.onclick=()=>imprimerSession(HISTO[+b.dataset.i]));
 }
 async function ouvrirHisto(){
+  $('histo-titre').textContent="Historique des comptages — suivi de l'année en cours";$('histo-pdf').style.display='none';
   $('histo').classList.add('open');
   $('histo-corps').innerHTML='<p class="note">Chargement…</p>';
   try{
@@ -998,6 +1003,84 @@ function imprimerIndiv(){
   w.onafterprint=()=>f.remove();
   setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
 }
+// ---- Comptage des poches : toutes les poches déposées (comptées ou non), avec filtres et impression PDF
+// Données = feuille Recap_poche (lecture seule). Le filtre « personne » s'appuie sur les équipiers de chaque tournée dans Paramètres.
+let POCHES=[],POCHES_MAJ='';
+const FILTRES_PC={t:'',p:'',d:'',z:'',a:''};
+const dateFr=j=>String(j).split('-').reverse().join('/');
+const tournVal=g=>g.t===''?'none':String(g.t);
+function pochesFiltrees(){
+  const f=FILTRES_PC;
+  const tp=f.p&&PARAM_REF?PARAM_REF.equipes.filter(e=>e.e1===f.p||e.e2===f.p).map(e=>e.t):null;
+  return POCHES.filter(g=>
+    (!f.t||tournVal(g)===f.t)&&
+    (!f.d||g.jour===f.d)&&
+    (!f.z||(g.z||'none')===f.z)&&
+    (!f.a||(f.a==='oui')===!!g.amicale)&&
+    (!tp||tp.includes(Number(g.t))));
+}
+function rendreTablePoches(){
+  const L=pochesFiltrees();
+  let tn=0,ts=0,ok=0;
+  const lignes=L.map(g=>{
+    tn+=g.n;ts+=g.s;if(g.amicale)ok++;
+    return `<tr><td>${dateFr(g.jour)}</td><td>${g.t===''?'—':g.t}</td><td style="text-align:center">${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td style="text-align:center">${g.amicale?'✔':''}</td><td>${g.dc?dateFr(g.dc):''}</td></tr>`;
+  }).join('');
+  $('pc-sum').textContent=L.length+' poche'+(L.length>1?'s':'')+' · '+ok+' comptée'+(ok>1?'s':'')+' · '+(L.length-ok)+' non comptée'+(L.length-ok>1?'s':'');
+  $('pc-table').innerHTML=L.length
+    ?'<table class="cpt hist"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>compt_amicale</th><th>Date de comptage</th></tr>'+lignes
+      +`<tr class="tot"><td colspan="3">Total</td><td style="text-align:right">${tn}</td><td style="text-align:right">${fmt(ts)}</td><td style="text-align:right">${fmt(tn?ts/tn:0)}</td><td></td><td></td></tr></table>`
+    :'<p class="note">Aucune poche pour ces filtres.</p>';
+}
+function rendrePoches(){
+  const z=$('histo-corps');
+  if(!POCHES.length){z.innerHTML="<p class=\"note\">Aucune poche dans la feuille Recap_poche : ferme cette fenêtre, appuie sur Actualiser dans le Comptage pour recalculer le tableau, puis rouvre-la.</p>";return}
+  const op=(v,l,sel)=>`<option value="${esc(v)}"${v===sel?' selected':''}>${esc(l)}</option>`;
+  const f=FILTRES_PC;
+  const tournees=[...new Set(POCHES.map(tournVal))].sort((a,b)=>(a==='none')-(b==='none')||Number(a)-Number(b));
+  const jours=[...new Set(POCHES.map(g=>g.jour))].sort().reverse();
+  const pers=PARAM_REF?[...new Set(PARAM_REF.equipes.flatMap(e=>[e.e1,e.e2]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')):[];
+  const sel=(id,k,lib,opts)=>`<label class="pcf">${lib}<select id="${id}" data-k="${k}">${opts}</select></label>`;
+  z.innerHTML='<div id="pc-filtres">'
+    +sel('pc-t','t','Tournée',op('','Toutes les tournées',f.t)+tournees.map(t=>op(t,t==='none'?'Hors tournée':'Tournée '+t,f.t)).join(''))
+    +(pers.length?sel('pc-p','p','Personne',op('','Toutes les personnes',f.p)+pers.map(p=>op(p,p,f.p)).join('')):'')
+    +sel('pc-d','d','Date',op('','Toutes les dates',f.d)+jours.map(j=>op(j,dateFr(j),f.d)).join(''))
+    +sel('pc-z','z','Secteur',op('','Tous les secteurs',f.z)+op('ville','Ville',f.z)+op('campagne','Campagne',f.z)+op('none','Hors secteur',f.z))
+    +sel('pc-a','a','compt_amicale',op('','Toutes',f.a)+op('oui','Cochées (comptées)',f.a)+op('non','Non cochées (non comptées)',f.a))
+    +'</div><p id="pc-sum" style="font-weight:700;margin:2px 0 8px"></p><div id="pc-table"></div>'
+    +'<p class="note" style="margin-top:10px">Données de la feuille Recap_poche'+(POCHES_MAJ?' (dernière actualisation : '+esc(POCHES_MAJ)+')':'')+' ; le bouton Actualiser du Comptage la recalcule. Le filtre « Personne » utilise les équipiers actuels de chaque tournée (feuille Parametres).</p>';
+  z.querySelectorAll('#pc-filtres select').forEach(s=>{s.onchange=()=>{FILTRES_PC[s.dataset.k]=s.value;rendreTablePoches()}});
+  rendreTablePoches();
+}
+async function ouvrirPoches(){
+  $('histo-titre').textContent='Comptage des poches';
+  $('histo-pdf').style.display='';$('histo-pdf').onclick=imprimerPoches;
+  $('histo').classList.add('open');
+  $('histo-corps').innerHTML='<p class="note">Chargement…</p>';
+  try{
+    const d=await lireRecap();
+    try{if(!PARAM_REF)await chargerParametres()}catch(e){}
+    if($('histo-titre').textContent!=='Comptage des poches')return;   // une autre fenêtre a été ouverte entre-temps
+    POCHES=d.rows.filter(g=>g.jour);POCHES_MAJ=d.maj||'';
+    Object.assign(FILTRES_PC,{t:'',p:'',d:'',z:'',a:''});
+    rendrePoches();
+  }catch(e){$('histo-corps').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Poches indisponibles : lecture de la feuille Recap_poche impossible.</p>'}
+}
+// Impression : la boîte d'impression propose « Enregistrer au format PDF » ; seules les lignes filtrées sont imprimées
+function imprimerPoches(){
+  const t=$('pc-table')&&$('pc-table').querySelector('table');if(!t)return;
+  const filtres=[['pc-t','Tournée'],['pc-p','Personne'],['pc-d','Date'],['pc-z','Secteur'],['pc-a','compt_amicale']]
+    .map(([id,l])=>{const s=$(id);return s&&s.value?l+' : '+s.selectedOptions[0].text:''}).filter(Boolean).join(' · ')||'Aucun filtre';
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Comptage des poches</title><style>@page{margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:5px 8px;font-size:12px;text-align:right}th{background:#e8eefb;text-align:center}td:nth-child(1),td:nth-child(2),td:nth-child(7),td:nth-child(8){text-align:center}tr.tot td{font-weight:700;background:#f1f4fa}</style></head><body><h1>Comptage des poches</h1><p>'+esc(filtres)+' · '+esc($('pc-sum').textContent)+' · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+t.outerHTML+'</body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+$('cpt-poches').onclick=ouvrirPoches;
 $('cpt-histo').onclick=ouvrirHisto;
 $('histo-fermer').onclick=()=>$('histo').classList.remove('open');
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('histo').classList.remove('open')});
