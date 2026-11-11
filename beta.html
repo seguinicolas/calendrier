@@ -18,7 +18,7 @@
   #don,#abs,#refus{display:none}
   body.ses #don,body.ses #abs,body.ses #refus{display:block}
   body.ses #ses{display:none}
-  #eqsel{position:absolute;top:8px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
+  #eqsel{position:absolute;bottom:112px;right:8px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
   #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
   #modal input,#modal select{font-size:20px;padding:8px}
@@ -26,18 +26,16 @@
   #smodal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #smodal .box{background:#fff;padding:18px;border-radius:14px;width:80%;max-width:320px;max-height:92%;overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
   #smodal input,#smodal select{font-size:18px;padding:8px}
+  #smodal input[readonly]{background:#eee;color:#555}
+  #s_info{font-size:12px;color:#666}
   #smodal .row{display:flex;gap:8px}#smodal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
-  #sesbar{display:none;position:absolute;top:104px;left:8px;right:8px;z-index:1000;background:#5e35b1;color:#fff;padding:6px 10px;border-radius:10px;font-size:13px;box-shadow:0 1px 4px #0006;align-items:center;gap:8px}
+  #sesbar{display:none;position:absolute;top:8px;left:8px;right:54px;z-index:1000;background:#5e35b1;color:#fff;padding:6px 10px;border-radius:10px;font-size:13px;box-shadow:0 1px 4px #0006;align-items:center;gap:8px}
   body.ses #sesbar{display:flex}
-  body.ses #aide{top:152px}
+  body.ses #recapbtn{top:60px}
   #sestxt{flex:1;min-width:0}
   #sestxt div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #sesclose{border:0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;background:#fff;color:#5e35b1}
-#filtres{position:absolute;bottom:98px;left:8px;right:8px;z-index:1000;display:flex;flex-wrap:wrap;gap:6px}
-#filtres button{border:2px solid;border-radius:16px;padding:5px 10px;font-size:13px;font-weight:700;background:#fff;color:#333}
-#filtres [data-t=don]{border-color:#2e9e4f}#filtres [data-t=absent]{border-color:#e08a00}#filtres [data-t=inoccupe]{border-color:#8e24aa}#filtres [data-t=refus]{border-color:#d32f2f}
-#filtres .on[data-t=don]{background:#2e9e4f;color:#fff}#filtres .on[data-t=absent]{background:#e08a00;color:#fff}#filtres .on[data-t=inoccupe]{background:#8e24aa;color:#fff}#filtres .on[data-t=refus]{background:#d32f2f;color:#fff}
-#recapbtn{position:absolute;top:50px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
+#recapbtn{position:absolute;top:8px;left:8px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
 #rtab table{width:100%;border-collapse:collapse;font-size:16px}
 #rtab th,#rtab td{padding:12px 8px;border-bottom:1px solid #ddd;text-align:right}
 #rtab th:first-child,#rtab td:first-child{text-align:left}
@@ -54,7 +52,7 @@
 #manuel{position:absolute;top:62px;right:10px;z-index:999;background:#fff;border:2px solid #0004;border-radius:6px;padding:6px 8px;font-size:14px;font-weight:700}
 #manuel.on{background:#1a73e8;color:#fff}
 #aide{display:none;position:absolute;top:100px;left:50%;transform:translateX(-50%);z-index:1000;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:0 1px 4px #0006;white-space:nowrap}
-#zoomhint{display:none;position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:1000;background:#333c;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;white-space:nowrap}
+#zoomhint{display:none;position:absolute;bottom:160px;left:50%;transform:translateX(-50%);z-index:1000;background:#333c;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;white-space:nowrap}
 .eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
 </style>
 </head>
@@ -69,7 +67,6 @@
   <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><select id="rsel" style="font-size:16px;padding:6px 8px;max-width:65%"><option value="">Toutes les tournées</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
   <div id="rtab" style="padding:12px"></div>
 </div>
-<div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button><button data-t="refus">🚫 Refus</button></div>
 <div id="bar">
   <button id="ses">📅 Ouvrir une session de calendrier</button>
   <button id="don">💶 Don reçu</button>
@@ -85,6 +82,7 @@
   <input id="s_e2" type="text" list="noms" placeholder="Équipier 2" autocomplete="off">
   <input id="s_e3" type="text" list="noms" placeholder="Équipier 3" autocomplete="off">
   <select id="s_ty"><option value="classique">Type : classique</option><option value="bal">Type : boîte aux lettres</option></select>
+  <small id="s_info"></small>
   <datalist id="noms"></datalist>
   <div class="row"><button id="s_ok" style="background:#5e35b1;color:#fff">Ouvrir</button><button id="s_cancel">Annuler</button></div>
 </div></div>
@@ -115,7 +113,7 @@ if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.creat
 const API = 'https://script.google.com/macros/s/AKfycbwzsuFlPsWSnWtzsKl9brcUMuMFPRSChVhiXRAZkFTh7SzUsOPB8zSoNo5ETwCJr0tq/exec';
 if(!TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='BETA — données de la copie de test';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a73e8cc;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
-const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
+const map = L.map('map',{preferCanvas:true,zoomControl:false}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 
 // Couches des secteurs (fichiers GeoJSON à côté de index.html)
@@ -150,7 +148,8 @@ function secteurs(url,zone){
 }
 const gAdr=L.featureGroup();
 const gAdrCtl=L.layerGroup().addTo(map); // case « Adresses » du menu des couches
-L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdrCtl},{collapsed:true}).addTo(map);
+const FIL={don:L.layerGroup().addTo(map),absent:L.layerGroup().addTo(map),inoccupe:L.layerGroup().addTo(map),refus:L.layerGroup().addTo(map)}; // filtres d'affichage, dans le menu des couches
+L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdrCtl,'💶 Don':FIL.don,'🚪 Absent':FIL.absent,'🏚️ Inoccupé':FIL.inoccupe,'🚫 Refus':FIL.refus},{collapsed:true}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
 const items = [];
@@ -223,15 +222,58 @@ function majSes(){
   if(SES)$('sestxt').innerHTML=`<div><b>Tournée ${esc(SES.tournee)} · ${nomZone(SES.zone)} · ${esc(TYPES[SES.type]||SES.type)}</b></div><div>${esc(SES.equipiers.join(', '))}</div>`;
 }
 function noms(){try{return JSON.parse(localStorage.getItem('noms')||'[]')}catch(e){return[]}}
+// Équipiers affectés à chaque tournée (feuille Parametres) : lecture seule, via ?parametres=1 (equipes : t, e1, e2 ; personnel : codes)
+let PARAM=null,PERS=[],paramEssai=false;
+try{PARAM=JSON.parse(localStorage.getItem('param')||'null')}catch(e){}
+try{PERS=JSON.parse(localStorage.getItem('pers')||'[]')}catch(e){}
+function majListe(){
+  const l=PERS.slice();noms().forEach(n=>{if(!l.some(x=>x.toLowerCase()===n.toLowerCase()))l.push(n)});
+  $('noms').innerHTML=l.map(n=>`<option value="${esc(n).replace(/"/g,'&quot;')}">`).join('');
+}
+function chargerParam(){
+  if(paramEssai)return Promise.resolve();
+  paramEssai=true;
+  const c=new AbortController();setTimeout(()=>c.abort(),8000);
+  return fetch(API+'?parametres=1',{signal:c.signal}).then(r=>r.json()).then(d=>{
+    if(d&&Array.isArray(d.equipes)){
+      const P={};d.equipes.forEach(x=>{P[String(x.t)]=[x.e1,x.e2].map(v=>String(v||'').trim()).filter(Boolean)});
+      PARAM=P;
+      PERS=(d.personnel||[]).map(x=>String(x.code||'').trim()).filter(Boolean);
+      try{localStorage.setItem('param',JSON.stringify(P));localStorage.setItem('pers',JSON.stringify(PERS))}catch(e){}
+    }
+  }).catch(()=>{paramEssai=false});
+}
+function remplirEq(){
+  const l=(PARAM&&PARAM[$('s_t').value])||[];
+  ['s_e1','s_e2','s_e3'].forEach((id,i)=>{$(id).value=l[i]||''});
+}
+// Boîte aux lettres : équipiers 1 et 2 repris de Parametres et non modifiables (si la feuille en donne)
+function majVerrou(){
+  const t=$('s_t').value,bal=$('s_ty').value==='bal',l=(PARAM&&PARAM[t])||[];
+  let verr=false;
+  [0,1].forEach(i=>{const e=$('s_e'+(i+1));if(bal&&l[i]){e.value=l[i];e.readOnly=true;verr=true}else e.readOnly=false});
+  $('s_e3').readOnly=false;
+  $('s_info').textContent=!PARAM?'Liste des équipiers indisponible : saisie manuelle.':verr?'Équipiers 1 et 2 : affectés à la tournée (non modifiables en boîte aux lettres).':(t&&!l.length)?'Aucun équipier noté pour cette tournée dans Parametres.':'';
+}
+$('s_t').onchange=()=>{remplirEq();majVerrou()};
+$('s_ty').onchange=majVerrou;
 $('ses').onclick=()=>{
   let last={};try{last=JSON.parse(localStorage.getItem('sesLast')||'{}')}catch(e){}
-  $('s_t').value=$('eqsel').value||last.tournee||'';
+  const t=$('eqsel').value||last.tournee||'';
+  $('s_t').value=t;
   $('s_z').value=last.zone||'';
-  const eq=last.equipiers||[];
-  $('s_e1').value=eq[0]||'';$('s_e2').value=eq[1]||'';$('s_e3').value=eq[2]||'';
   $('s_ty').value=last.type||'classique';
-  $('noms').innerHTML=noms().map(n=>`<option value="${esc(n).replace(/"/g,'&quot;')}">`).join('');
+  if(t&&last.tournee===t&&last.equipiers){const eq=last.equipiers;$('s_e1').value=eq[0]||'';$('s_e2').value=eq[1]||'';$('s_e3').value=eq[2]||''}
+  else remplirEq();
+  majVerrou();
+  majListe();
   $('smodal').style.display='flex';
+  chargerParam().then(()=>{
+    if($('smodal').style.display!=='flex')return;
+    majListe();
+    if($('s_t').value&&!$('s_e1').value&&!$('s_e2').value&&!$('s_e3').value)remplirEq();
+    majVerrou();
+  });
 };
 $('s_cancel').onclick=()=>$('smodal').style.display='none';
 $('s_ok').onclick=()=>{
@@ -436,10 +478,7 @@ function applyFilters(){
   });
 
 }
-document.querySelectorAll('#filtres button').forEach(b=>{
-  b.classList.add('on');
-  b.onclick=()=>{const t=b.dataset.t;filtre[t]=!filtre[t];b.classList.toggle('on',filtre[t]);applyFilters()};
-});
+Object.keys(FIL).forEach(t=>FIL[t].on('add remove',()=>{filtre[t]=map.hasLayer(FIL[t]);applyFilters()}));
 
 // Points d'adresse (cliquables)
 function popupAdr(a,gps){
