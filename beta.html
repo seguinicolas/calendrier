@@ -132,7 +132,7 @@ const TEST=new URLSearchParams(location.search).has('test');
 if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 // BETA : écrit dans la COPIE DE TEST du Google Sheet (jamais dans le vrai)
 const API = 'https://script.google.com/macros/s/AKfycbyaoNUItVWqDNfh7fyHkCikQBRAYvuIrbMq-oQkg-5eddEHOoGD9YVVduEH-K5BfGvwWQ/exec';
-if(!TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='BETA v7 — données de la copie de test';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a73e8cc;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
+if(!TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='BETA v8 — données de la copie de test';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a73e8cc;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
 const map = L.map('map',{preferCanvas:true,zoomControl:false}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
@@ -351,6 +351,8 @@ $('sesclose').onclick=()=>{
 };
 $('bi-retour').onclick=()=>$('bilan').style.display='none';
 $('bi-fin').onclick=()=>{
+  // à la fin de la session : recalcul de Recap_poche dans le Sheet (même fonction que le bouton Actualiser), placé dans la file après les dernières saisies
+  if(!TEST){setQ([...getQ(),{action:'recap'}]);flush()}
   SES=null;try{localStorage.removeItem('ses')}catch(e){}
   $('bilan').style.display='none';majSes();
 };
