@@ -34,6 +34,18 @@
   body.ses #recapbtn{top:60px}
   #sestxt{flex:1;min-width:0}
   #sestxt div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #bilan{display:none;position:absolute;inset:0;z-index:3500;background:#fff;overflow:auto;font-family:system-ui,sans-serif}
+  #bilan .in{max-width:440px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top,0px)) 18px calc(24px + env(safe-area-inset-bottom,0px))}
+  #bilan .tete{background:#5e35b1;color:#fff;border-radius:14px;text-align:center;padding:18px 10px;margin-bottom:16px}
+  #bilan .tete small{display:block;font-size:14px;opacity:.85;margin-bottom:4px}
+  #bilan .tete .t{font-size:40px;font-weight:800;line-height:1.1}
+  #bilan .tete .z{font-size:28px;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:1px}
+  #bilan .l{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 4px;border-bottom:1px solid #e3e3e3;font-size:20px}
+  #bilan .l span{color:#444}
+  #bilan .l b{font-size:24px;text-align:right}
+  #bilan .l small{display:block;font-size:13px;color:#777;font-weight:400}
+  #bilan .l.g{background:#f4f0fb;border-radius:10px;border-bottom:0;margin-top:10px}
+  #bilan .bt2{display:block;width:100%;font-size:19px;font-weight:700;padding:16px;border:0;border-radius:12px;margin-top:14px}
   #sesclose{border:0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;background:#fff;color:#5e35b1}
 #recapbtn{position:absolute;top:8px;left:8px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
 #rtab table{width:100%;border-collapse:collapse;font-size:16px}
@@ -85,6 +97,16 @@
   <small id="s_info"></small>
   <div class="row"><button id="s_ok" style="background:#5e35b1;color:#fff">Ouvrir</button><button id="s_cancel">Annuler</button></div>
 </div></div>
+<div id="bilan"><div class="in">
+  <div class="tete"><small>Bilan de la session</small><div class="t" id="bi-t"></div><div class="z" id="bi-z"></div></div>
+  <div class="l"><span>Calendriers réalisés</span><b id="bi-nb"></b></div>
+  <div class="l"><span>Espèces<small id="bi-ne"></small></span><b id="bi-esp"></b></div>
+  <div class="l"><span>Chèques<small id="bi-nc"></small></span><b id="bi-chq"></b></div>
+  <div class="l"><span>Total</span><b id="bi-tot"></b></div>
+  <div class="l g"><span>Moyenne par calendrier</span><b id="bi-moy"></b></div>
+  <button class="bt2" id="bi-fin" style="background:#2e9e4f;color:#fff">Terminer la session</button>
+  <button class="bt2" id="bi-retour" style="background:#e8e8e8;color:#222">Reprendre la session</button>
+</div></div>
 <div id="modal"><div class="box">
   <b id="titre">Don reçu</b>
   <input id="nom" type="text" placeholder="Nom">
@@ -110,7 +132,7 @@ const TEST=new URLSearchParams(location.search).has('test');
 if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 // BETA : écrit dans la COPIE DE TEST du Google Sheet (jamais dans le vrai)
 const API = 'https://script.google.com/macros/s/AKfycbyaoNUItVWqDNfh7fyHkCikQBRAYvuIrbMq-oQkg-5eddEHOoGD9YVVduEH-K5BfGvwWQ/exec';
-if(!TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='BETA v6 — données de la copie de test';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a73e8cc;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
+if(!TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='BETA v7 — données de la copie de test';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a73e8cc;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
 const map = L.map('map',{preferCanvas:true,zoomControl:false}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
@@ -303,10 +325,34 @@ $('s_ok').onclick=()=>{
   $('smodal').style.display='none';
   majSes();
 };
+// Bilan de la session : dons enregistrés avec l'id de la session (calendriers, espèces, chèques, moyenne)
+function bilanSession(){
+  const b={nb:0,esp:0,chq:0,ne:0,nc:0};
+  Object.values(pts).forEach(mk=>Object.values(mk.L).forEach(r=>{
+    if(r.type!=='don'||r.cal!==SES.id)return;
+    const m=Number(r.montant)||0;b.nb++;
+    if(r.mode==='Chèque'){b.nc++;b.chq+=m}else{b.ne++;b.esp+=m}
+  }));
+  b.total=b.esp+b.chq;
+  return b;
+}
+const nbDons=n=>n+' don'+(n>1?'s':'');
 $('sesclose').onclick=()=>{
-  if(!confirm('Fermer la session ?'))return;
+  stopPlacement();map.closePopup();$('modal').style.display='none';
+  const b=bilanSession();
+  $('bi-t').textContent='Tournée '+SES.tournee;
+  $('bi-z').textContent=nomZone(SES.zone);
+  $('bi-nb').textContent=b.nb;
+  $('bi-esp').textContent=fmt(b.esp);$('bi-ne').textContent=nbDons(b.ne);
+  $('bi-chq').textContent=fmt(b.chq);$('bi-nc').textContent=nbDons(b.nc);
+  $('bi-tot').textContent=fmt(b.total);
+  $('bi-moy').textContent=b.nb?fmt(b.total/b.nb):'—';
+  $('bilan').style.display='block';$('bilan').scrollTop=0;
+};
+$('bi-retour').onclick=()=>$('bilan').style.display='none';
+$('bi-fin').onclick=()=>{
   SES=null;try{localStorage.removeItem('ses')}catch(e){}
-  stopPlacement();$('modal').style.display='none';map.closePopup();majSes();
+  $('bilan').style.display='none';majSes();
 };
 // Signale un point situé dans une autre tournée que celle de la session
 function verifTournee(a){
