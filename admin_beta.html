@@ -722,6 +722,7 @@ function calcForm(){
 }
 function msgForm(t,erreur){const m=$('f-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
 function resetForm(){
+  CAL_SEL='';
   $('cf').querySelectorAll('input:not([readonly]),select').forEach(x=>{if(x.id==='f-ty')x.value='tournee';else x.value=''});
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
 }
@@ -752,7 +753,7 @@ function brancherTri(zone,tab,rerendre){
   });
 }
 // Valeur triée de chaque colonne (dans l'ordre des colonnes affichées)
-const COLS_G=[o=>o.g.jour,o=>o.g.t===''?999:Number(o.g.t),o=>o.g.z==='ville'?'Ville':o.g.z==='campagne'?'Campagne':'Hors secteur',o=>o.g.n,o=>o.g.s,o=>o.g.n?o.g.s/o.g.n:0,o=>o.g.amicale?1:0];
+const COLS_G=[o=>o.g.jour,o=>o.g.t===''?999:Number(o.g.t),o=>o.g.z==='ville'?'Ville':o.g.z==='campagne'?'Campagne':'Hors secteur',o=>o.g.n,o=>o.g.s,o=>String(o.g.npoche||'').padStart(10,'0'),o=>o.g.amicale?1:0];
 const COLS_L=[o=>o.r.jour,o=>Number(o.r.t),o=>o.r.z==='ville'?'Ville':'Campagne',o=>o.r.nb,o=>o.r.esp,o=>o.r.chm,o=>o.r.total];
 
 // ---- Récap des comptages validés dans la session (feuille Comptage_poche) : modifier ✏️ / supprimer ❌
@@ -783,7 +784,7 @@ function rendreListe(){
 }
 async function modifierLigne(r){
   if(!$('cf'))return;
-  EDIT_ID=r.id;
+  EDIT_ID=r.id;CAL_SEL=r.cal||'';
   $('f-dt').value=r.jour;$('f-t').value=String(r.t);$('f-z').value=r.z;$('f-ty').value=r.type;$('f-nb').value=r.nb||'';
   r.q.forEach((n,i)=>{$('c'+i).value=n||''});
   $('f-chn').value=r.chn||'';$('f-chm').value=r.chm||'';$('f-mon').value=r.mon||'';
@@ -816,17 +817,18 @@ async function supprimerLigne(r){
   msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : rien ne semble avoir été supprimé. Vérifie la feuille Comptage_poche.',true);
 }
 // Coche automatiquement compt_amicale pour la poche validée (même fonction du Sheet que la case cochée à la main)
-async function cocherPoche(dt,t,z){
-  const num=Number(t);
+async function cocherPoche(dt,t,z,cal){
+  const num=Number(t);cal=cal||'';
   let r=null;
-  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:dt,t:num,z:z,valeur:true,dateCompt:jourLocal(new Date().toISOString()),session:SESSION_ID})});r=await x.json()}catch(e){r=null}
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:dt,t:num,z:z,cal:cal,valeur:true,dateCompt:jourLocal(new Date().toISOString()),session:SESSION_ID})});r=await x.json()}catch(e){r=null}
   if(!(r&&r.ok))return false;
   GARDEES.add(dt+'|'+num+'|'+z);
-  const g=RECAP.find(x=>x.jour===dt&&Number(x.t)===num&&x.z===z);if(g){g.amicale=true;g.dc=jourLocal(new Date().toISOString());g.session=SESSION_ID}
-  const tr=document.querySelector(`#cpt-table tr.lg[data-jour="${dt}"][data-t="${num}"][data-z="${z}"]`);
+  const g=RECAP.find(x=>x.jour===dt&&Number(x.t)===num&&x.z===z&&(x.calendrier||'')===cal);if(g){g.amicale=true;g.dc=jourLocal(new Date().toISOString());g.session=SESSION_ID}
+  const tr=document.querySelector(`#cpt-table tr.lg[data-jour="${dt}"][data-t="${num}"][data-z="${z}"][data-cal="${cal}"]`);
   if(tr){tr.classList.add('ok');const cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=true}
   return true;
 }
+
 let COMPTAGE_ID='';
 async function validerForm(){
   const c=calcForm(),dt=$('f-dt').value,t=$('f-t').value,z=$('f-z').value;
@@ -836,7 +838,7 @@ async function validerForm(){
   if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
   if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet. Total calculé : "+fmt(c.tot),true);return}
   if(!COMPTAGE_ID)COMPTAGE_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-  const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
+  const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,idCal:CAL_SEL,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
     coupures:VAL.map((v,i)=>Math.max(0,Math.floor(Number($('c'+i).value)||0))),
     chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Number($('f-mon').value)||0};
   if(EDIT_ID){envoi.action='comptageModif';envoi.id=EDIT_ID}
@@ -854,7 +856,7 @@ async function validerForm(){
     rafraichirSession();msgForm('✔ Modification enregistrée (totaux, liste et tableau de gauche rechargés).');return;
   }
   if(d&&d.ok){
-    const cochee=await cocherPoche(dt,t,z);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
+    const cochee=await cocherPoche(dt,t,z,CAL_SEL);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
     COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
     majTotSession();chargerListeSession();   // totaux de la session relus dans recap_compta, liste mise à jour
     msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
@@ -863,10 +865,17 @@ async function validerForm(){
 }
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
+  CAL_SEL=tr.dataset.cal||'';   // la poche = la session de calendrier de la ligne
   const g=RECAP[+tr.dataset.i];
-  if(g&&g.equipiers&&g.equipiers.length)appliquerEquipiers(g.equipiers);   // équipiers de la session de calendrier
+  if(g&&g.equipiers&&g.equipiers.length)appliquerEquipiers(g.equipiers);   // équipiers de cette session
   else remplirEquipiers(tr.dataset.t);   // pas de session connue : équipiers par défaut de Parametres
 }
+async function appliquerEquipiers(liste){
+  if(!await prepEquipiers())return;
+  EQ_IDS.forEach(id=>fixerEquipier(id,''));
+  liste.slice(0,3).forEach((n,i)=>fixerEquipier(EQ_IDS[i],n));
+}
+
 async function appliquerEquipiers(liste){
   if(!await prepEquipiers())return;
   EQ_IDS.forEach(id=>fixerEquipier(id,''));
@@ -1094,6 +1103,7 @@ $('histo-fermer').onclick=()=>$('histo').classList.remove('open');
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('histo').classList.remove('open')});
 // ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
 let RECAP=[];
+let CAL_SEL='';   // id_calendrier de la poche (ligne cliquée) : sert au comptage et à la case compt_amicale
 // Poches déjà comptées : masquées à l'ouverture du Comptage, sauf celles validées pendant la session (elles restent visibles, en vert)
 let AFF_COMPTEES=false,LAST_D=null;
 const GARDEES=new Set();const cleP=g=>g.jour+'|'+g.t+'|'+g.z;
@@ -1106,9 +1116,12 @@ function tableComptage(d){
   const lignes=ordre.map(({g,i})=>{
     if(g.amicale&&!AFF_COMPTEES&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
     vis++;tn+=g.n;ts+=g.s;
-    return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td><input type="checkbox"${g.amicale?' checked':''}></td></tr>`;
+    return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}" data-cal="${esc(g.calendrier||'')}">
+<td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${esc(g.npoche||'')}</td><td><input type="checkbox"
+${g.amicale?' checked':''}></td></tr>`;
   }).join('');
-  $('cpt-table').innerHTML=`<table class="cpt"><tr>${enteteTri('gauche',0,'Date')}${enteteTri('gauche',1,'Tournée')}${enteteTri('gauche',2,'Secteur')}${enteteTri('gauche',3,'Nombre de calendriers')}${enteteTri('gauche',4,'Somme')}${enteteTri('gauche',5,'Moyenne')}${enteteTri('gauche',6,'compt_amicale')}</tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
+  $('cpt-table').innerHTML=`<table class="cpt"><tr>${enteteTri('gauche',0,'Date')}${enteteTri('gauche',1,'Tournée')}${enteteTri('gauche',2,'Secteur')}${enteteTri('gauche',3,'Nombre de calendriers')}${enteteTri('gauche',4,'Somme')}${enteteTri('gauche',5,'N° de poche')}
+${enteteTri('gauche',6,'compt_amicale')}</tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td></td><td></td></tr>`:''}</table>`;
   brancherTri($('cpt-table'),'gauche',()=>tableComptage(LAST_D));
   $('cpt-actu').title=d.maj?'Dernière actualisation : '+d.maj:'Pas encore actualisé';
   $('cpt-table').querySelectorAll('input[type=checkbox]').forEach(c=>{
@@ -1116,7 +1129,7 @@ function tableComptage(d){
     c.onchange=async()=>{
       const g=RECAP[+c.closest('tr').dataset.i],val=c.checked;
       let r=null;
-      try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:g.jour,t:g.t,z:g.z,valeur:val,dateCompt:val?jourLocal(new Date().toISOString()):'',session:val?SESSION_ID:''})});r=await x.json()}catch(e){r=null}
+      try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:g.jour,t:g.t,z:g.z,cal:g.calendrier||'',valeur:val,dateCompt:val?jourLocal(new Date().toISOString()):'',session:val?SESSION_ID:''})});r=await x.json()}catch(e){r=null}
       if(r&&r.ok){
         g.amicale=val;if(val)GARDEES.add(cleP(g));
         g.dc=val?jourLocal(new Date().toISOString()):'';g.session=val?SESSION_ID:'';
