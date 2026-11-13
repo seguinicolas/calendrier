@@ -14,16 +14,41 @@
   #bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;gap:8px;padding:8px;box-sizing:border-box;background:#222}
   #bar button{flex:1;min-width:0;padding:0 4px;font-size:15px;font-weight:700;border:0;border-radius:12px;color:#fff}
   #don{background:#2e9e4f}#abs{background:#e08a00}#refus{background:#d32f2f}#liste{background:#1a73e8}
-  #eqsel{position:absolute;top:8px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
+  #ses{background:#5e35b1}
+  #don,#abs,#refus{display:none}
+  body.ses #don,body.ses #abs,body.ses #refus{display:block}
+  body.ses #ses{display:none}
+  #eqsel{position:absolute;bottom:112px;right:8px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
   #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
   #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
   #modal input,#modal select{font-size:20px;padding:8px}
   #modal .row{display:flex;gap:8px}#modal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
-#filtres{position:absolute;bottom:98px;left:8px;right:8px;z-index:1000;display:flex;flex-wrap:wrap;gap:6px}
-#filtres button{border:2px solid;border-radius:16px;padding:5px 10px;font-size:13px;font-weight:700;background:#fff;color:#333}
-#filtres [data-t=don]{border-color:#2e9e4f}#filtres [data-t=absent]{border-color:#e08a00}#filtres [data-t=inoccupe]{border-color:#8e24aa}#filtres [data-t=refus]{border-color:#d32f2f}
-#filtres .on[data-t=don]{background:#2e9e4f;color:#fff}#filtres .on[data-t=absent]{background:#e08a00;color:#fff}#filtres .on[data-t=inoccupe]{background:#8e24aa;color:#fff}#filtres .on[data-t=refus]{background:#d32f2f;color:#fff}
-#recapbtn{position:absolute;top:50px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
+  #smodal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
+  #smodal .box{background:#fff;padding:18px;border-radius:14px;width:80%;max-width:320px;max-height:92%;overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
+  #smodal input,#smodal select{font-size:18px;padding:8px}
+  #smodal select:disabled{background:#eee;color:#555;opacity:1}
+  #s_info{font-size:12px;color:#666}
+  #smodal .row{display:flex;gap:8px}#smodal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
+  #sesbar{display:none;position:absolute;top:8px;left:8px;right:54px;z-index:1000;background:#5e35b1;color:#fff;padding:6px 10px;border-radius:10px;font-size:13px;box-shadow:0 1px 4px #0006;align-items:center;gap:8px}
+  body.ses #sesbar{display:flex}
+  body.ses #recapbtn{top:60px}
+  #sestxt{flex:1;min-width:0}
+  #sestxt div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #bilan{display:none;position:absolute;inset:0;z-index:3500;background:#fff;overflow:auto;font-family:system-ui,sans-serif}
+  #bilan .in{max-width:440px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top,0px)) 18px calc(24px + env(safe-area-inset-bottom,0px))}
+  #bilan .tete{background:#5e35b1;color:#fff;border-radius:14px;text-align:center;padding:18px 10px;margin-bottom:16px}
+  #bilan .tete small{display:block;font-size:14px;opacity:.85;margin-bottom:4px}
+  #bilan .tete .t{font-size:40px;font-weight:800;line-height:1.1}
+  #bilan .tete .z{font-size:28px;font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:1px}
+  #bilan .l{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 4px;border-bottom:1px solid #e3e3e3;font-size:20px}
+  #bilan .l span{color:#444}
+  #bilan .l b{font-size:24px;text-align:right}
+  #bilan .l small{display:block;font-size:13px;color:#777;font-weight:400}
+  #bilan .l input{width:150px;font-size:24px;font-weight:700;text-align:right;padding:6px 8px;border:2px solid #5e35b1;border-radius:8px;box-sizing:border-box}
+  #bilan .l.g{background:#f4f0fb;border-radius:10px;border-bottom:0;margin-top:10px}
+  #bilan .bt2{display:block;width:100%;font-size:19px;font-weight:700;padding:16px;border:0;border-radius:12px;margin-top:14px}
+  #sesclose{border:0;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;background:#fff;color:#5e35b1}
+#recapbtn{position:absolute;top:8px;left:8px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
 #rtab table{width:100%;border-collapse:collapse;font-size:16px}
 #rtab th,#rtab td{padding:12px 8px;border-bottom:1px solid #ddd;text-align:right}
 #rtab th:first-child,#rtab td:first-child{text-align:left}
@@ -40,7 +65,7 @@
 #manuel{position:absolute;top:62px;right:10px;z-index:999;background:#fff;border:2px solid #0004;border-radius:6px;padding:6px 8px;font-size:14px;font-weight:700}
 #manuel.on{background:#1a73e8;color:#fff}
 #aide{display:none;position:absolute;top:100px;left:50%;transform:translateX(-50%);z-index:1000;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:0 1px 4px #0006;white-space:nowrap}
-#zoomhint{display:none;position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:1000;background:#333c;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;white-space:nowrap}
+#zoomhint{display:none;position:absolute;bottom:160px;left:50%;transform:translateX(-50%);z-index:1000;background:#333c;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;white-space:nowrap}
 .eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
 </style>
 </head>
@@ -50,17 +75,40 @@
 <button id="manuel">➕ Point</button><div id="zoomhint">Zoomez pour afficher les points</div>
 <div id="aide">Touchez la carte pour placer le point</div>
 <button id="recapbtn">📊 Récap</button>
+<div id="sesbar"><div id="sestxt"></div><button id="sesclose">Fermer</button></div>
 <div id="recap" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
   <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><select id="rsel" style="font-size:16px;padding:6px 8px;max-width:65%"><option value="">Toutes les tournées</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
   <div id="rtab" style="padding:12px"></div>
 </div>
-<div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button><button data-t="refus">🚫 Refus</button></div>
 <div id="bar">
+  <button id="ses">📅 Ouvrir une session de calendrier</button>
   <button id="don">💶 Don reçu</button>
   <button id="abs">🚪 Absent</button>
   <button id="refus">🚫 Refus</button>
   <button id="liste">📋 Absents</button>
 </div>
+<div id="smodal"><div class="box">
+  <b>Session de calendrier</b>
+  <select id="s_t"><option value="">N° de tournée</option><option value="1">Tournée 1</option><option value="2">Tournée 2</option><option value="3">Tournée 3</option><option value="4">Tournée 4</option><option value="5">Tournée 5</option><option value="6">Tournée 6</option><option value="7">Tournée 7</option><option value="8">Tournée 8</option><option value="9">Tournée 9</option><option value="10">Tournée 10</option><option value="11">Tournée 11</option><option value="12">Tournée 12</option><option value="13">Tournée 13</option></select>
+  <select id="s_z"><option value="">Ville ou campagne</option><option value="ville">Ville</option><option value="campagne">Campagne</option></select>
+  <select id="s_e1"></select>
+  <select id="s_e2"></select>
+  <select id="s_e3"></select>
+  <select id="s_ty"><option value="classique">Type : classique</option><option value="bal">Type : boîte aux lettres</option></select>
+  <small id="s_info"></small>
+  <div class="row"><button id="s_ok" style="background:#5e35b1;color:#fff">Ouvrir</button><button id="s_cancel">Annuler</button></div>
+</div></div>
+<div id="bilan"><div class="in">
+  <div class="tete"><small>Bilan de la session</small><div class="t" id="bi-t"></div><div class="z" id="bi-z"></div></div>
+  <div class="l"><span>Calendriers réalisés</span><b id="bi-nb"></b></div>
+  <div class="l"><span>Espèces<small id="bi-ne"></small></span><b id="bi-esp"></b></div>
+  <div class="l"><span>Chèques<small id="bi-nc"></small></span><b id="bi-chq"></b></div>
+  <div class="l"><span>Total</span><b id="bi-tot"></b></div>
+  <div class="l g"><span>Moyenne par calendrier</span><b id="bi-moy"></b></div>
+  <div class="l"><span>N° de poche</span><input id="bi-poche" type="text" autocomplete="off" maxlength="40"></div>
+  <button class="bt2" id="bi-fin" style="background:#2e9e4f;color:#fff">Terminer la session</button>
+  <button class="bt2" id="bi-retour" style="background:#e8e8e8;color:#222">Reprendre la session</button>
+</div></div>
 <div id="modal"><div class="box">
   <b id="titre">Don reçu</b>
   <input id="nom" type="text" placeholder="Nom">
@@ -84,9 +132,10 @@ if(!window.L){document.body.insertAdjacentHTML('afterbegin','<div style="padding
 // Mode test : ouvrir l'adresse avec ?test=1 (rien n'est envoyé au Google Sheet)
 const TEST=new URLSearchParams(location.search).has('test');
 if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
+// Vrai Google Sheet
 const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
-const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
+const map = L.map('map',{preferCanvas:true,zoomControl:false}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 
 // Couches des secteurs (fichiers GeoJSON à côté de index.html)
@@ -121,7 +170,8 @@ function secteurs(url,zone){
 }
 const gAdr=L.featureGroup();
 const gAdrCtl=L.layerGroup().addTo(map); // case « Adresses » du menu des couches
-L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdrCtl},{collapsed:true}).addTo(map);
+const FIL={don:L.layerGroup().addTo(map),absent:L.layerGroup().addTo(map),inoccupe:L.layerGroup().addTo(map),refus:L.layerGroup().addTo(map)}; // filtres d'affichage, dans le menu des couches
+L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdrCtl,'💶 Don':FIL.don,'🚪 Absent':FIL.absent,'🏚️ Inoccupé':FIL.inoccupe,'🚫 Refus':FIL.refus},{collapsed:true}).addTo(map);
 
 let pos = null, me = null, first = true, total = 0;
 const items = [];
@@ -175,7 +225,7 @@ async function flush(){
   envoi=false;
   if(ok&&getQ().length)flush();
 }
-function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));
+function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));if(SES&&SES.id)r.cal=SES.id;   // id de la session de calendrier
   if(TEST){addMarker(r);return}
  setQ([...getQ(),r]);addMarker(r);flush()}
 
@@ -183,6 +233,142 @@ function needPos(){if(!pos){alert('Position GPS pas encore trouvée');return fal
 
 const esc=s=>String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const $=id=>document.getElementById(id);
+
+// Session de calendrier : tournée, secteur, équipiers et type, gardés sur le téléphone uniquement
+let SES=null;
+try{SES=JSON.parse(localStorage.getItem('ses')||'null')}catch(e){}
+if(SES&&!SES.id){SES=null;try{localStorage.removeItem('ses')}catch(e){}}   // session ouverte avec une ancienne version : à rouvrir
+const nomZone=z=>z==='ville'?'Ville':'Campagne';
+const TYPES={classique:'Classique',bal:'Boîte aux lettres'};
+function majSes(){
+  document.body.classList.toggle('ses',!!SES);
+  if(SES)$('sestxt').innerHTML=`<div><b>Tournée ${esc(SES.tournee)} · ${nomZone(SES.zone)} · ${esc(TYPES[SES.type]||SES.type)}</b></div><div>${esc(SES.equipiers.join(', '))}</div>`;
+}
+// Équipiers affectés à chaque tournée (feuille Parametres) : lecture seule, via ?parametres=1 (equipes : t, e1, e2 ; personnel : codes)
+let PARAM=null,PERS=[],paramEssai=false;
+try{PARAM=JSON.parse(localStorage.getItem('param')||'null')}catch(e){}
+try{PERS=JSON.parse(localStorage.getItem('pers')||'[]')}catch(e){}
+const EQ_IDS=['s_e1','s_e2','s_e3'];
+const listeEq=()=>'<option value="">—</option>'+[...PERS].sort((x,y)=>x.localeCompare(y,'fr')).map(c=>`<option value="${esc(c).replace(/"/g,'&quot;')}">${esc(c)}</option>`).join('');
+// Une personne choisie dans une case est grisée dans les deux autres (comme dans le Comptage)
+function griserEq(){
+  EQ_IDS.forEach(id=>{
+    const e=$(id);
+    const autres=EQ_IDS.filter(x=>x!==id).map(x=>$(x).value).filter(Boolean);
+    [...e.options].forEach(o=>{o.disabled=o.value!==''&&autres.includes(o.value)});
+  });
+}
+function setEq(id,v){
+  const e=$(id);v=v||'';
+  if(v&&![...e.options].some(o=>o.value===v))e.add(new Option(v,v));
+  e.value=v;griserEq();
+}
+function majListe(){EQ_IDS.forEach(id=>{const e=$(id),v=e.value;e.innerHTML=listeEq();setEq(id,v)})}
+EQ_IDS.forEach(id=>{$(id).onchange=griserEq});
+let PARAM_ERR='';
+function chargerParam(){
+  if(paramEssai)return Promise.resolve();
+  paramEssai=true;
+  const c=new AbortController();setTimeout(()=>c.abort(),8000);
+  return fetch(API+'?parametres=1',{signal:c.signal}).then(r=>r.text()).then(txt=>{
+    let d;try{d=JSON.parse(txt)}catch(e){PARAM_ERR='réponse illisible : '+txt.slice(0,40).replace(/\s+/g,' ');return}
+    const liste=d&&(Array.isArray(d.equipes)?d.equipes:Array.isArray(d.tournees)?d.tournees:null);
+    if(!liste){PARAM_ERR='format inattendu ('+(Array.isArray(d)?'liste de '+d.length+' lignes':d&&typeof d==='object'?'clés : '+Object.keys(d).slice(0,6).join(', '):typeof d)+')';return}
+    const P={};
+    liste.forEach(x=>{
+      const a=Array.isArray(x.equipiers)?x.equipiers:[x.e1!=null?x.e1:x.eq1,x.e2!=null?x.e2:x.eq2];
+      P[String(x.t)]=a.map(v=>String(v==null?'':v).trim()).filter(Boolean);
+    });
+    PARAM=P;PARAM_ERR='';
+    PERS=(d.personnel||[]).map(x=>String(x.code||x.nom||'').trim()).filter(Boolean);
+    try{localStorage.setItem('param',JSON.stringify(P));localStorage.setItem('pers',JSON.stringify(PERS))}catch(e){}
+  }).catch(e=>{PARAM_ERR='réseau ('+(e&&e.name||'erreur')+')';paramEssai=false});
+}
+function remplirEq(){
+  const l=(PARAM&&PARAM[$('s_t').value])||[];
+  EQ_IDS.forEach(id=>setEq(id,''));
+  setEq('s_e1',l[0]);setEq('s_e2',l[1]);   // l'équipier 3 reste libre
+}
+// Boîte aux lettres : équipiers 1 et 2 repris de Parametres et non modifiables (si la feuille en donne)
+function majVerrou(){
+  const t=$('s_t').value,bal=$('s_ty').value==='bal',l=(PARAM&&PARAM[t])||[];
+  let verr=false;
+  [0,1].forEach(i=>{const e=$('s_e'+(i+1));if(bal&&l[i]){setEq('s_e'+(i+1),l[i]);e.disabled=true;verr=true}else e.disabled=false});
+  $('s_e3').disabled=false;
+  $('s_info').textContent=!PARAM?'Liste des équipiers indisponible'+(PARAM_ERR?' — '+PARAM_ERR:'')+'.':verr?'Équipiers 1 et 2 : affectés à la tournée (non modifiables en boîte aux lettres).':(t&&!l.length)?'Aucun équipier noté pour la tournée '+t+' ('+Object.keys(PARAM).length+' tournées lues dans Parametres).':'';
+}
+$('s_t').onchange=()=>{remplirEq();majVerrou()};
+$('s_ty').onchange=majVerrou;
+$('ses').onclick=()=>{
+  $('s_t').value='';$('s_z').value='';$('s_ty').value='classique';
+  majListe();EQ_IDS.forEach(id=>setEq(id,''));
+  majVerrou();
+  $('smodal').style.display='flex';
+  chargerParam().then(()=>{if($('smodal').style.display==='flex'){majListe();majVerrou()}});
+};
+$('s_cancel').onclick=()=>$('smodal').style.display='none';
+$('s_ok').onclick=()=>{
+  const t=$('s_t').value,z=$('s_z').value,ty=$('s_ty').value;
+  const eq=[$('s_e1').value,$('s_e2').value,$('s_e3').value].map(x=>x.trim());
+  if(!t){alert('N° de tournée ?');return}
+  if(!z){alert('Ville ou campagne ?');return}
+  if(!eq[0]&&PERS.length){alert('Équipier 1 ?');return}
+  const pris=eq.filter(Boolean).map(x=>x.toLowerCase());
+  if(new Set(pris).size!==pris.length){alert('Un équipier ne peut figurer qu\'une seule fois');return}
+  const dn=new Date(),p2=n=>String(n).padStart(2,'0');
+  const id='C'+dn.getFullYear()+p2(dn.getMonth()+1)+p2(dn.getDate())+'-'+p2(dn.getHours())+p2(dn.getMinutes())+p2(dn.getSeconds());
+  SES={id,tournee:t,zone:z,type:ty,equipiers:eq.filter(Boolean),debut:dn.toISOString()};
+  // la session est envoyée au Sheet (feuille Session_calendrier) par la file d'attente, avant les saisies qui la porteront
+  if(!TEST){setQ([...getQ(),{action:'sessionCalendrier',id,date:dn.toISOString(),t:Number(t),secteur:z,type:ty,e1:eq[0],e2:eq[1],e3:eq[2]}]);flush()}
+  try{
+    localStorage.setItem('ses',JSON.stringify(SES));
+  }catch(e){}
+  $('smodal').style.display='none';
+  majSes();
+};
+// Bilan de la session : dons enregistrés avec l'id de la session (calendriers, espèces, chèques, moyenne)
+function bilanSession(){
+  const b={nb:0,esp:0,chq:0,ne:0,nc:0};
+  Object.values(pts).forEach(mk=>Object.values(mk.L).forEach(r=>{
+    if(r.type!=='don'||r.cal!==SES.id)return;
+    const m=Number(r.montant)||0;b.nb++;
+    if(r.mode==='Chèque'){b.nc++;b.chq+=m}else{b.ne++;b.esp+=m}
+  }));
+  b.total=b.esp+b.chq;
+  return b;
+}
+const nbDons=n=>n+' don'+(n>1?'s':'');
+$('sesclose').onclick=()=>{
+  stopPlacement();map.closePopup();$('modal').style.display='none';
+  const b=bilanSession();
+  $('bi-t').textContent='Tournée '+SES.tournee;
+  $('bi-z').textContent=nomZone(SES.zone);
+  $('bi-nb').textContent=b.nb;
+  $('bi-esp').textContent=fmt(b.esp);$('bi-ne').textContent=nbDons(b.ne);
+  $('bi-chq').textContent=fmt(b.chq);$('bi-nc').textContent=nbDons(b.nc);
+  $('bi-tot').textContent=fmt(b.total);
+  $('bi-moy').textContent=b.nb?fmt(b.total/b.nb):'—';
+  $('bi-poche').value='';
+  $('bilan').style.display='block';$('bilan').scrollTop=0;
+};
+$('bi-retour').onclick=()=>$('bilan').style.display='none';
+$('bi-fin').onclick=()=>{
+  const poche=$('bi-poche').value.trim();
+  if(!poche&&bilanSession().nb>0){alert('Renseigne le n° de poche.');$('bi-poche').focus();return}
+  // à la fin de la session : n° de poche (colonne N_poche de Session_calendrier), puis recalcul de Recap_poche (comme le bouton Actualiser), placés dans la file après les dernières saisies
+  if(!TEST){const q=[...getQ()];if(poche)q.push({action:'sessionPoche',id:SES.id,poche});q.push({action:'recap'});setQ(q);flush()}
+  SES=null;try{localStorage.removeItem('ses')}catch(e){}
+  $('bilan').style.display='none';majSes();
+};
+// Signale un point situé dans une autre tournée que celle de la session
+function verifTournee(a){
+  if(!SECT.length)return true;
+  const p=a?{lat:a.lat,lng:a.lng}:pos;
+  const z=eqPos(p.lat,p.lng);
+  if(String(z.equipe)===String(SES.tournee)&&z.zone===SES.zone)return true;
+  const ou=z.equipe!==''?`dans la tournée ${z.equipe} (${z.zone})`:'hors de toutes les tournées tracées';
+  return confirm(`⚠️ Ce point est ${ou}, mais la session est la tournée ${SES.tournee} (${SES.zone}).\n\nContinuer quand même ?`);
+}
 
 // Adresse automatique (OpenStreetMap / Nominatim)
 async function adresse(p){
@@ -198,7 +384,9 @@ async function adresse(p){
 
 let cur=null;
 function ouvrir(type,a,n,rec){
+  if(!SES){alert('Ouvrez d\'abord une session de calendrier');return}
   if(!a&&!needPos())return;
+  if(!verifTournee(a))return;
   n=n||1;
   const ida=a?(n>1?a.id+'#'+n:a.id):'';
   if((type==='inoccupe'||type==='supprimer')&&a){save({type,ida,lat:a.lat,lng:a.lng,nom:rec?rec.nom||'':'',adresse:a.adresse,montant:0,mode:'',note:rec?rec.note||'':''});return}
@@ -319,6 +507,7 @@ let placement=false;
 function stopPlacement(){placement=false;$('manuel').classList.remove('on');$('aide').style.display='none';map.getContainer().style.cursor=''}
 $('manuel').onclick=()=>{
   if(placement){stopPlacement();return}
+  if(!SES){alert('Ouvrez d\'abord une session de calendrier');return}
   placement=true;$('manuel').classList.add('on');$('aide').style.display='block';
   map.getContainer().style.cursor='crosshair';map.closePopup();
 };
@@ -350,10 +539,7 @@ function applyFilters(){
   });
 
 }
-document.querySelectorAll('#filtres button').forEach(b=>{
-  b.classList.add('on');
-  b.onclick=()=>{const t=b.dataset.t;filtre[t]=!filtre[t];b.classList.toggle('on',filtre[t]);applyFilters()};
-});
+Object.keys(FIL).forEach(t=>FIL[t].on('add remove',()=>{filtre[t]=map.hasLayer(FIL[t]);applyFilters()}));
 
 // Points d'adresse (cliquables)
 function popupAdr(a,gps){
@@ -371,8 +557,9 @@ const LAB={don:'💶 Don',absent:'🚪 Absent',inoccupe:'🏚️ Inoccupé',refu
 const statutTxt=r=>(r.type==='don'?r.montant+' € ('+r.mode+')':NOMS[r.type])+(r.note?' — '+r.note:'');
 function popupMk(mk,extra){
   const a=mk.a;
+  const edit=!!SES; // hors session : consultation seulement
   const d=document.createElement('div');
-  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}`;
+  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}`+(edit?'':'<span style="color:#5e35b1">📅 Ouvrez une session pour saisir</span>');
   const nums=Object.keys(mk.L).map(Number);
   if(extra&&!nums.includes(extra))nums.push(extra);
   if(!nums.length)nums.push(1);
@@ -388,6 +575,7 @@ function popupMk(mk,extra){
       bloc.insertAdjacentHTML('beforeend',`<span style="color:#555">🔒 Don du ${esc(jr.split('-').reverse().join('/'))} — non modifiable</span>`);
       d.appendChild(bloc);return;
     }
+    if(!edit){d.appendChild(bloc);return}
     ['don','absent','inoccupe','refus','pompier','supprimer'].filter(t=>!mk.gps||(t!=='inoccupe'&&t!=='pompier'&&t!=='supprimer')).forEach(t=>{
       const act=rec&&rec.type===t,b=document.createElement('button');
       b.textContent=LAB[t];
@@ -401,7 +589,7 @@ function popupMk(mk,extra){
     });
     d.appendChild(bloc);
   });
-  if(Object.keys(mk.L).length&&!extra){
+  if(edit&&Object.keys(mk.L).length&&!extra){
     const b=document.createElement('button');
     b.textContent='➕ Ajouter un logement';
     b.style.cssText='margin-top:10px;padding:8px 10px;font-size:15px;width:100%;border:2px dashed #1a73e8;border-radius:8px;background:#fff;color:#1a73e8';
@@ -437,6 +625,7 @@ function actualiser(){
 }
 setInterval(actualiser,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualiser()});
+majSes();
 majZoom();
 flush();
 window.addEventListener('online',flush);
