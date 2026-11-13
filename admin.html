@@ -176,6 +176,14 @@ table.cpt.ind td:nth-child(n+2){text-align:right}
 table.cpt.eqt td{text-align:right}
 table.cpt.eqt td:nth-child(-n+4){text-align:left}
 table.cpt.eqt td:first-child{text-align:center}
+#cpt-plus{font-size:18px;font-weight:700;line-height:1;padding:3px 10px;margin-left:10px;border:2px solid #1a73e8;border-radius:8px;background:#fff;color:#1a73e8;cursor:pointer}
+#cpt-plus:hover{background:#e8eefb}
+#sm{position:fixed;inset:0;z-index:2600;background:#0008;display:none;align-items:center;justify-content:center;font-family:system-ui,sans-serif}
+#sm.open{display:flex}
+#sm .box{background:#fff;border-radius:12px;padding:14px 18px;width:92%;max-width:540px;max-height:92vh;overflow:auto}
+#sm h4{margin:0 0 10px;font-size:16px}
+#sm label{display:block;font-size:13px;color:#33475b}
+#sm input,#sm select{display:block;width:100%;box-sizing:border-box;margin-top:1px;padding:5px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
 </style>
 </head>
 <body>
@@ -228,7 +236,8 @@ if(!window.L){document.body.insertAdjacentHTML('afterbegin','<div style="padding
 // Mode test : ouvrir l'adresse avec ?test=1 (rien n'est envoyé au Google Sheet)
 const TEST=new URLSearchParams(location.search).has('test');
 if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
-const API = 'https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
+const API='https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
+
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
 const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
@@ -721,6 +730,7 @@ function calcForm(){
 }
 function msgForm(t,erreur){const m=$('f-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
 function resetForm(){
+  CAL_SEL='';
   $('cf').querySelectorAll('input:not([readonly]),select').forEach(x=>{if(x.id==='f-ty')x.value='tournee';else x.value=''});
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
 }
@@ -751,7 +761,7 @@ function brancherTri(zone,tab,rerendre){
   });
 }
 // Valeur triée de chaque colonne (dans l'ordre des colonnes affichées)
-const COLS_G=[o=>o.g.jour,o=>o.g.t===''?999:Number(o.g.t),o=>o.g.z==='ville'?'Ville':o.g.z==='campagne'?'Campagne':'Hors secteur',o=>o.g.n,o=>o.g.s,o=>o.g.n?o.g.s/o.g.n:0,o=>o.g.amicale?1:0];
+const COLS_G=[o=>o.g.jour,o=>o.g.t===''?999:Number(o.g.t),o=>o.g.z==='ville'?'Ville':o.g.z==='campagne'?'Campagne':'Hors secteur',o=>o.g.n,o=>o.g.s,o=>String(o.g.npoche||'').padStart(10,'0'),o=>o.g.amicale?1:0];
 const COLS_L=[o=>o.r.jour,o=>Number(o.r.t),o=>o.r.z==='ville'?'Ville':'Campagne',o=>o.r.nb,o=>o.r.esp,o=>o.r.chm,o=>o.r.total];
 
 // ---- Récap des comptages validés dans la session (feuille Comptage_poche) : modifier ✏️ / supprimer ❌
@@ -782,7 +792,7 @@ function rendreListe(){
 }
 async function modifierLigne(r){
   if(!$('cf'))return;
-  EDIT_ID=r.id;
+  EDIT_ID=r.id;CAL_SEL=r.cal||'';
   $('f-dt').value=r.jour;$('f-t').value=String(r.t);$('f-z').value=r.z;$('f-ty').value=r.type;$('f-nb').value=r.nb||'';
   r.q.forEach((n,i)=>{$('c'+i).value=n||''});
   $('f-chn').value=r.chn||'';$('f-chm').value=r.chm||'';$('f-mon').value=r.mon||'';
@@ -815,17 +825,18 @@ async function supprimerLigne(r){
   msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : rien ne semble avoir été supprimé. Vérifie la feuille Comptage_poche.',true);
 }
 // Coche automatiquement compt_amicale pour la poche validée (même fonction du Sheet que la case cochée à la main)
-async function cocherPoche(dt,t,z){
-  const num=Number(t);
+async function cocherPoche(dt,t,z,cal){
+  const num=Number(t);cal=cal||'';
   let r=null;
-  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:dt,t:num,z:z,valeur:true,dateCompt:jourLocal(new Date().toISOString()),session:SESSION_ID})});r=await x.json()}catch(e){r=null}
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:dt,t:num,z:z,cal:cal,valeur:true,dateCompt:jourLocal(new Date().toISOString()),session:SESSION_ID})});r=await x.json()}catch(e){r=null}
   if(!(r&&r.ok))return false;
   GARDEES.add(dt+'|'+num+'|'+z);
-  const g=RECAP.find(x=>x.jour===dt&&Number(x.t)===num&&x.z===z);if(g){g.amicale=true;g.dc=jourLocal(new Date().toISOString());g.session=SESSION_ID}
-  const tr=document.querySelector(`#cpt-table tr.lg[data-jour="${dt}"][data-t="${num}"][data-z="${z}"]`);
+  const g=RECAP.find(x=>x.jour===dt&&Number(x.t)===num&&x.z===z&&(x.calendrier||'')===cal);if(g){g.amicale=true;g.dc=jourLocal(new Date().toISOString());g.session=SESSION_ID}
+  const tr=document.querySelector(`#cpt-table tr.lg[data-jour="${dt}"][data-t="${num}"][data-z="${z}"][data-cal="${cal}"]`);
   if(tr){tr.classList.add('ok');const cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=true}
   return true;
 }
+
 let COMPTAGE_ID='';
 async function validerForm(){
   const c=calcForm(),dt=$('f-dt').value,t=$('f-t').value,z=$('f-z').value;
@@ -835,7 +846,7 @@ async function validerForm(){
   if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
   if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet. Total calculé : "+fmt(c.tot),true);return}
   if(!COMPTAGE_ID)COMPTAGE_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-  const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
+  const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,idCal:CAL_SEL,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
     coupures:VAL.map((v,i)=>Math.max(0,Math.floor(Number($('c'+i).value)||0))),
     chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Number($('f-mon').value)||0};
   if(EDIT_ID){envoi.action='comptageModif';envoi.id=EDIT_ID}
@@ -853,7 +864,7 @@ async function validerForm(){
     rafraichirSession();msgForm('✔ Modification enregistrée (totaux, liste et tableau de gauche rechargés).');return;
   }
   if(d&&d.ok){
-    const cochee=await cocherPoche(dt,t,z);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
+    const cochee=await cocherPoche(dt,t,z,CAL_SEL);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
     COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
     majTotSession();chargerListeSession();   // totaux de la session relus dans recap_compta, liste mise à jour
     msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
@@ -862,7 +873,21 @@ async function validerForm(){
 }
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
-  remplirEquipiers(tr.dataset.t);
+  CAL_SEL=tr.dataset.cal||'';   // la poche = la session de calendrier de la ligne
+  const g=RECAP[+tr.dataset.i];
+  if(g&&g.equipiers&&g.equipiers.length)appliquerEquipiers(g.equipiers);   // équipiers de cette session
+  else remplirEquipiers(tr.dataset.t);   // pas de session connue : équipiers par défaut de Parametres
+}
+async function appliquerEquipiers(liste){
+  if(!await prepEquipiers())return;
+  EQ_IDS.forEach(id=>fixerEquipier(id,''));
+  liste.slice(0,3).forEach((n,i)=>fixerEquipier(EQ_IDS[i],n));
+}
+
+async function appliquerEquipiers(liste){
+  if(!await prepEquipiers())return;
+  EQ_IDS.forEach(id=>fixerEquipier(id,''));
+  liste.slice(0,3).forEach((n,i)=>fixerEquipier(EQ_IDS[i],n));
 }
 // Équipiers par défaut : ceux de la tournée dans la feuille Parametres (restent modifiables à la main)
 const listeEquipiers=()=>'<option value="">—</option>'+[...PARAM_REF.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr')).map(p=>`<option value="${esc(p.code)}">${esc(p.code)}</option>`).join('');
@@ -1086,6 +1111,7 @@ $('histo-fermer').onclick=()=>$('histo').classList.remove('open');
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('histo').classList.remove('open')});
 // ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
 let RECAP=[];
+let CAL_SEL='';   // id_calendrier de la poche (ligne cliquée) : sert au comptage et à la case compt_amicale
 // Poches déjà comptées : masquées à l'ouverture du Comptage, sauf celles validées pendant la session (elles restent visibles, en vert)
 let AFF_COMPTEES=false,LAST_D=null;
 const GARDEES=new Set();const cleP=g=>g.jour+'|'+g.t+'|'+g.z;
@@ -1098,9 +1124,12 @@ function tableComptage(d){
   const lignes=ordre.map(({g,i})=>{
     if(g.amicale&&!AFF_COMPTEES&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
     vis++;tn+=g.n;ts+=g.s;
-    return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td><input type="checkbox"${g.amicale?' checked':''}></td></tr>`;
+    return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}" data-cal="${esc(g.calendrier||'')}">
+<td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${esc(g.npoche||'')}</td><td><input type="checkbox"
+${g.amicale?' checked':''}></td></tr>`;
   }).join('');
-  $('cpt-table').innerHTML=`<table class="cpt"><tr>${enteteTri('gauche',0,'Date')}${enteteTri('gauche',1,'Tournée')}${enteteTri('gauche',2,'Secteur')}${enteteTri('gauche',3,'Nombre de calendriers')}${enteteTri('gauche',4,'Somme')}${enteteTri('gauche',5,'Moyenne')}${enteteTri('gauche',6,'compt_amicale')}</tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
+  $('cpt-table').innerHTML=`<table class="cpt"><tr>${enteteTri('gauche',0,'Date')}${enteteTri('gauche',1,'Tournée')}${enteteTri('gauche',2,'Secteur')}${enteteTri('gauche',3,'Nombre de calendriers')}${enteteTri('gauche',4,'Somme')}${enteteTri('gauche',5,'N° de poche')}
+${enteteTri('gauche',6,'compt_amicale')}</tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td></td><td></td></tr>`:''}</table>`;
   brancherTri($('cpt-table'),'gauche',()=>tableComptage(LAST_D));
   $('cpt-actu').title=d.maj?'Dernière actualisation : '+d.maj:'Pas encore actualisé';
   $('cpt-table').querySelectorAll('input[type=checkbox]').forEach(c=>{
@@ -1108,7 +1137,7 @@ function tableComptage(d){
     c.onchange=async()=>{
       const g=RECAP[+c.closest('tr').dataset.i],val=c.checked;
       let r=null;
-      try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:g.jour,t:g.t,z:g.z,valeur:val,dateCompt:val?jourLocal(new Date().toISOString()):'',session:val?SESSION_ID:''})});r=await x.json()}catch(e){r=null}
+      try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:g.jour,t:g.t,z:g.z,cal:g.calendrier||'',valeur:val,dateCompt:val?jourLocal(new Date().toISOString()):'',session:val?SESSION_ID:''})});r=await x.json()}catch(e){r=null}
       if(r&&r.ok){
         g.amicale=val;if(val)GARDEES.add(cleP(g));
         g.dc=val?jourLocal(new Date().toISOString()):'';g.session=val?SESSION_ID:'';
@@ -1136,6 +1165,68 @@ async function actualiserComptage(){
   }catch(e){etatCpt("Impossible d'actualiser : pas de réponse du Sheet.",true)}
   if($('cpt-actu'))$('cpt-actu').disabled=false;
 }
+// ---- Poche manuelle : session de calendrier créée à la main pour une équipe qui n'utilise pas l'app
+const nouvelIdCal=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'C'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
+const SM_EQ=['m-e1','m-e2','m-e3'];
+function smGriser(){
+  SM_EQ.forEach(id=>{
+    const s=$(id);if(!s)return;
+    const autres=SM_EQ.filter(x=>x!==id).map(x=>$(x).value).filter(Boolean);
+    [...s.options].forEach(o=>{o.disabled=o.value!==''&&autres.includes(o.value)});
+  });
+}
+function smMsg(t){const m=$('m-msg');if(m){m.textContent=t;m.style.color='#c62828';m.style.fontWeight='700'}}
+async function ouvrirSessionManuelle(){
+  try{if(!PARAM_REF)await chargerParametres()}catch(e){etatCpt('Paramètres illisibles : impossible de créer la poche.',true);return}
+  let m=$('sm');
+  if(!m){m=document.createElement('div');m.id='sm';document.body.appendChild(m)}
+  const opts=Array.from({length:13},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  const eqs=SM_EQ.map((id,i)=>`<label>Équipier ${i+1}<select id="${id}">${listeEquipiers()}</select></label>`).join('');
+  m.innerHTML=`<div class="box"><h4>➕ Poche manuelle (équipe sans l'app)</h4>
+    <div class="grille g5">
+      <label>Date de la tournée<input id="m-dt" type="date" value="${jourLocal(new Date().toISOString())}"></label>
+      <label>N° tournée<select id="m-t"><option value="">—</option>${opts}</select></label>
+      <label>Campagne / Ville<select id="m-z"><option value="">—</option><option value="campagne">Campagne</option><option value="ville">Ville</option></select></label>
+      ${eqs}
+      <label>N° de poche<input id="m-poche" type="text" inputmode="numeric"></label>
+      <label>Nombre de calendriers<input id="m-nb" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Somme (€)<input id="m-somme" type="number" min="0" step="0.01" inputmode="decimal"></label>
+    </div>
+    <div class="boutons"><button type="button" class="rouge" id="m-annuler">Annuler</button><button type="button" class="vert" id="m-ok">Créer</button></div>
+    <p id="m-msg" class="note"></p></div>`;
+  m.classList.add('open');
+  SM_EQ.forEach(id=>$(id).addEventListener('change',smGriser));
+  $('m-t').onchange=()=>{
+    const q=PARAM_REF.equipes.find(x=>x.t===Number($('m-t').value));
+    SM_EQ.forEach(id=>{$(id).value=''});
+    if(q){$('m-e1').value=q.e1||'';$('m-e2').value=q.e2||''}   // équipier 3 libre ; tout reste modifiable
+    smGriser();
+  };
+  $('m-annuler').onclick=()=>m.classList.remove('open');
+  $('m-ok').onclick=creerSessionManuelle;
+}
+async function creerSessionManuelle(){
+  const dt=$('m-dt').value,t=$('m-t').value,z=$('m-z').value;
+  const eq=SM_EQ.map(id=>$(id).value),nonVides=eq.filter(Boolean);
+  const nb=Math.max(0,Math.floor(Number($('m-nb').value)||0)),somme=Math.max(0,Number($('m-somme').value)||0);
+  if(!dt||!t||!z){smMsg('Renseigne la date, le n° de tournée et campagne / ville.');return}
+  if(new Set(nonVides).size<nonVides.length){smMsg("Un équipier ne peut être choisi qu'une seule fois.");return}
+  if(!(nb>0)&&!(somme>0)){smMsg('Renseigne le nombre de calendriers ou la somme.');return}
+  if(TEST){smMsg("Mode test : rien n'est envoyé au Sheet.");return}
+  const id=nouvelIdCal();
+  $('m-ok').disabled=true;smMsg('Création en cours…');$('m-msg').style.color='#555';
+  let d=null;
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'sessionCalendrier',id,date:new Date(dt+'T12:00:00').toISOString(),t:Number(t),secteur:z,type:'manuelle',e1:eq[0],e2:eq[1],e3:eq[2],poche:$('m-poche').value.trim(),nb,somme})});d=await x.json()}catch(e){d=null}
+  if(!(d&&d.ok)){$('m-ok').disabled=false;smMsg(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : vérifie la feuille Session_calendrier avant de recommencer.');return}
+  $('sm').classList.remove('open');
+  await actualiserComptage();   // Recap_poche recalculé, tableau relu
+  const tr=document.querySelector(`#cpt-table tr.lg[data-cal="${id}"]`);
+  if(!tr){etatCpt('Poche créée, mais ligne introuvable dans le tableau : appuie sur Actualiser.',true);return}
+  document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));
+  tr.classList.add('sel');tr.scrollIntoView({block:'center'});
+  if(SESSION&&$('cf'))remplirDepuisLigne(tr);   // session ouverte : formulaire prérempli
+  else ouvrirSession();                          // sinon on l'ouvre, il se préremplit avec la ligne sélectionnée
+}
 $('ab-cpt').onclick=()=>{
   if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
   GARDEES.clear();AFF_COMPTEES=false;LAST_D=null;
@@ -1143,7 +1234,7 @@ $('ab-cpt').onclick=()=>{
     <p id="cpt-etat" class="note" style="margin:8px 0">Chargement…</p>
     <div class="cptwrap">
     <div class="cptleft">
-      <label class="affc"><input type="checkbox" id="aff-comptees"> Afficher aussi les poches comptées</label>
+           <div style="display:flex;align-items:center"><label class="affc" style="margin:0"><input type="checkbox" id="aff-comptees"> Afficher aussi les poches comptées</label><button id="cpt-plus" title="Créer une poche manuelle (équipe sans l'app)">➕</button></div> Afficher aussi les poches comptées</label>
       <div id="cpt-table"></div>
       <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille. « Hors secteur » : dons hors de tes secteurs tracés.</p>
     </div>
@@ -1154,6 +1245,7 @@ $('ab-cpt').onclick=()=>{
   </div>`);
   $('ouvrir-session').onclick=ouvrirSession;
   $('aff-comptees').onchange=()=>{AFF_COMPTEES=$('aff-comptees').checked;if(LAST_D)tableComptage(LAST_D)};
+   $('cpt-plus').onclick=ouvrirSessionManuelle;
   $('cpt-actu').onclick=actualiserComptage;
   if(TEST)lireRecap().then(d=>{tableComptage(d);etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
   else actualiserComptage();   // le tableau est recalculé dans le Sheet dès l'ouverture du Comptage
