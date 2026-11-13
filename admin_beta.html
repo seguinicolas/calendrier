@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendriers — Administration BETA</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>window.L||document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>')</script>
+<script>window.L||document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>')</script>
+<style>
+  html,body{height:100%;margin:0;font-family:system-ui,sans-serif}
+  #map{position:absolute;inset:0 0 90px 0}
+  #bar{position:absolute;left:0;right:0;bottom:0;height:90px;display:flex;gap:8px;padding:8px;box-sizing:border-box;background:#222}
+  #bar button{flex:1;font-size:16px;font-weight:700;border:0;border-radius:12px;color:#fff}
+  #don{background:#2e9e4f}#abs{background:#e08a00}#liste{background:#1a73e8}
+  #eqsel{position:absolute;top:8px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
+  #modal{display:none;position:absolute;inset:0;z-index:2000;background:#0008;align-items:center;justify-content:center}
+  #modal .box{background:#fff;padding:20px;border-radius:14px;width:80%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+  #modal input,#modal select{font-size:20px;padding:8px}
+  #modal .row{display:flex;gap:8px}#modal .row button{flex:1;font-size:17px;padding:10px;border:0;border-radius:8px}
+#filtres{position:absolute;bottom:98px;left:8px;z-index:1000;display:flex;gap:6px}
+#filtres button{border:2px solid;border-radius:16px;padding:5px 10px;font-size:13px;font-weight:700;background:#fff;color:#333}
+#filtres [data-t=don]{border-color:#2e9e4f}#filtres [data-t=absent]{border-color:#e08a00}#filtres [data-t=inoccupe]{border-color:#8e24aa}
+#filtres .on[data-t=don]{background:#2e9e4f;color:#fff}#filtres .on[data-t=absent]{background:#e08a00;color:#fff}#filtres .on[data-t=inoccupe]{background:#8e24aa;color:#fff}
+#recapbtn{position:absolute;top:50px;left:52px;z-index:1000;background:#fff;padding:6px 10px;border-radius:10px;font-weight:700;font-size:15px;border:0;box-shadow:0 1px 4px #0006}
+#rtab table{width:100%;border-collapse:collapse;font-size:16px}
+#rtab th,#rtab td{padding:12px 8px;border-bottom:1px solid #ddd;text-align:right}
+#rtab th:first-child,#rtab td:first-child{text-align:left}
+#rtab table.t1 tr:last-child td{font-weight:700}
+#rtab table.t2{font-size:13px}
+#rtab table.t2 th,#rtab table.t2 td{padding:8px 4px;text-align:center}
+#rtab table.t2 th:first-child,#rtab table.t2 td:first-child{text-align:center;font-weight:700}
+#rtab table.t2 table.t3{width:100%;font-size:13px;margin:2px 0 8px}
+#rtab table.t2 table.t3 th,#rtab table.t2 table.t3 td{padding:6px 4px;text-align:left;font-weight:400;border-bottom:1px solid #eee}
+#rtab table.t2 table.t3 th{font-weight:700}
+#rtab table.t2 table.t3 td:last-child,#rtab table.t2 table.t3 th:last-child{text-align:right}
+#rtab tr.det>td{background:#f7f9fc}
+#rtab h4{margin:22px 0 6px;font-size:16px}
+#manuel{position:absolute;top:62px;right:10px;z-index:999;background:#fff;border:2px solid #0004;border-radius:6px;padding:6px 8px;font-size:14px;font-weight:700}
+#manuel.on{background:#1a73e8;color:#fff}
+#aide{display:none;position:absolute;top:100px;left:50%;transform:translateX(-50%);z-index:1000;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:0 1px 4px #0006;white-space:nowrap}
+#zoomhint{display:none;position:absolute;bottom:140px;left:50%;transform:translateX(-50%);z-index:1000;background:#333c;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;white-space:nowrap}
+.eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
+.ab{display:block;width:100%;font-size:18px;font-weight:700;padding:18px;margin:0 0 12px;border:0;border-radius:12px;background:#1a73e8;color:#fff;text-align:left}
+#bar,#filtres,#eqsel,#recapbtn,#manuel,#aide,#zoomhint{display:none!important}
+#map{position:absolute;left:-9999px;top:0;width:300px;height:300px}
+#admin{position:absolute;inset:0;overflow:auto;background:#f4f6fa;font-family:system-ui,sans-serif}
+#admin .in{max-width:560px;margin:0 auto;padding:24px 16px 48px}
+#admin h2{margin:0 0 4px}#admin h3{margin:20px 0 8px}
+#admin .bt{font-size:16px;padding:10px 14px;border:2px solid #1a73e8;border-radius:8px;background:#fff;color:#1a73e8;font-weight:700}
+#admin .note{color:#555;font-size:14px}
+table.cpt{border-collapse:collapse;width:100%;background:#fff;font-size:14px}
+table.cpt th,table.cpt td{border:1px solid #cfd6e4;padding:7px 8px;text-align:right}
+table.cpt th{background:#e8eefb;text-align:center}
+table.cpt td:nth-child(1),table.cpt td:nth-child(2),table.cpt td:nth-child(3){text-align:center}
+table.cpt td:last-child{text-align:center}
+table.cpt tr.tot td{font-weight:700;background:#f1f4fa}
+table.cpt tr.lg{cursor:pointer}table.cpt tr.lg:hover td{background:#eef3ff}table.cpt tr.sel td{background:#dbe7ff}
+#admin .in.large{max-width:none;margin:0;padding-left:10px;padding-right:14px}
+.cptwrap{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:start}
+.cptleft h3{margin:0 0 8px}
+.cptleft{max-width:640px}
+.affc{display:block;margin:0 0 6px;font-size:14px;color:#33475b;cursor:pointer}
+#cpt-table{max-height:calc(100vh - 296px);min-height:200px;overflow:auto}
+table.cpt tr.lg.ok td{background:#cdeccd}
+table.cpt tr.lg.ok:hover td{background:#bfe5bf}
+table.cpt tr.sel td{box-shadow:inset 0 2px 0 #1a73e8,inset 0 -2px 0 #1a73e8}
+#cpt-actu,#cpt-fermer,#cpt-histo,#cpt-poches{white-space:nowrap;height:36px;padding:0 12px;border:1px solid #ffffff88;border-radius:8px;background:transparent;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#cpt-actu:hover,#cpt-actu:focus,#cpt-fermer:hover,#cpt-fermer:focus,#cpt-histo:hover,#cpt-histo:focus,#cpt-poches:hover,#cpt-poches:focus{background:#ffffff22}
+#cpt-histo{line-height:1.15;font-size:13px}
+#cpt-histo small{display:block;font-size:11px;font-weight:400}
+/* Fenêtre « Historique des comptages » */
+#histo{position:fixed;inset:0;z-index:2500;background:#f4f6fa;display:none;flex-direction:column;font-family:system-ui,sans-serif}
+#histo.open{display:flex}
+#histo .tete{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;background:#1a2b4c;color:#fff}
+#histo .tete b{font-size:17px}
+#histo .tete button{height:36px;padding:0 14px;border:1px solid #ffffff88;border-radius:8px;background:transparent;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#histo .tete button:hover{background:#ffffff22}
+#histo .corps{flex:1;overflow:auto;padding:14px 16px}
+table.cpt.hist{font-size:13px;width:auto;min-width:100%}
+table.cpt.hist th,table.cpt.hist td{padding:6px 8px;text-align:right;white-space:nowrap}
+table.cpt.hist th{position:sticky;top:0;z-index:1;text-align:center;box-shadow:0 1px 0 #cfd6e4}
+table.cpt.hist td:nth-child(1),table.cpt.hist td:nth-child(2),table.cpt.hist td:last-child{text-align:center}
+button.pdf{border:1px solid #c62828;color:#c62828;background:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer}
+button.pdf:hover{background:#ffeaea}
+#histo .tete button.pdf{height:36px;padding:0 14px;border:1px solid #ffffff88;color:#fff;background:transparent;font-size:14px;border-radius:8px}
+#histo .tete button.pdf:hover{background:#ffffff22}
+.pcf{display:inline-block;margin:0 16px 10px 0;font-size:13px;color:#33475b}
+.pcf select{display:block;margin-top:2px;padding:6px 8px;font-size:14px;border:1px solid #9fb7c9;border-radius:6px;background:#fff;min-width:150px}
+#cpt-actu:disabled,#cpt-fermer:disabled{opacity:.5;cursor:default}
+#cpt-table table.cpt th{position:sticky;top:0;z-index:1;box-shadow:0 1px 0 #cfd6e4}
+/* Flèches de tri ▲▼ dans les entêtes des tableaux du Comptage */
+.fl2{display:inline-flex;flex-direction:column;margin-left:5px;vertical-align:middle;line-height:10px}
+.fl2 i{font-style:normal;font-size:10px;color:#9aa8c4;cursor:pointer;padding:0 4px;user-select:none}
+.fl2 i:hover{color:#1a73e8}
+.fl2 i.on{color:#1a73e8}
+@media (max-width:1100px){.cptwrap{grid-template-columns:1fr}.cptleft{max-width:none;overflow-x:auto}}
+.pbox{max-width:900px}
+.onglets{display:flex;gap:6px;border-bottom:2px solid #c9d3e6;margin-bottom:10px}
+.onglets button{font-size:16px;font-weight:700;padding:10px 20px;border:0;border-radius:8px 8px 0 0;background:#e8eefb;color:#1a2b4c;cursor:pointer}
+.onglets button.on{background:#1a73e8;color:#fff}
+.apercu{background:#fff4d6;border:1px solid #f0d58a;border-radius:6px;padding:6px 10px;font-size:13px;color:#7a5b00}
+.barre-ajout{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.barre-ajout input{flex:1;min-width:140px;padding:8px 10px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px}
+#po table.cpt{width:100%}
+#po table.cpt input.e-nom,#po table.cpt select{width:100%;box-sizing:border-box;padding:6px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
+#po table.cpt td:nth-child(2),#po table.cpt td:nth-child(3),#po table.cpt td:nth-child(4){text-align:left}
+button.sup{font-size:13px;padding:5px 10px;border:1px solid #d9a0a0;border-radius:6px;background:#fff;color:#b71c1c;cursor:pointer}
+button.sup:hover{background:#ffeaea}
+.cptdroite{display:flex;align-items:center;justify-content:center;min-height:320px}
+.cptdroite.ouvert{display:block;min-height:0}
+.cptcol{min-width:0}
+#cptlist{margin-top:8px;overflow:auto;max-height:calc(100vh - 666px)}
+#cptlist.ouvert{min-height:140px}
+table.cpt.cptl{font-size:12px}
+table.cpt.cptl th,table.cpt.cptl td{padding:4px 6px}
+table.cpt.cptl td:nth-child(n+4){text-align:right}
+table.cpt.cptl td:last-child{text-align:center}
+#cptlist button.ib{border:0;background:transparent;font-size:16px;cursor:pointer;padding:2px 5px;border-radius:6px}
+#cptlist button.ib:hover{background:#e8eefb}
+.cpttotwrap{overflow-x:auto;min-height:108px}
+.cpttotwrap table{visibility:hidden}
+.cpttotwrap.ouvert table{visibility:visible}
+table.cpt.cpttot{font-size:16px;width:100%}
+table.cpt.cpttot th,table.cpt.cpttot td{padding:4px 5px;text-align:center;vertical-align:middle}
+table.cpt.cpttot th,table.cpt.cpttot td{height:52px}
+table.cpt.cpttot td{white-space:nowrap}
+.gros{font-size:20px;font-weight:700;padding:22px 34px;border:0;border-radius:12px;background:#1a73e8;color:#fff;cursor:pointer;box-shadow:0 2px 8px #0003}
+.gros:hover,.gros:focus{background:#1558b0}
+.cptform{background:#e3f6ff;border:1px solid #b7dff3;border-radius:10px;padding:6px 14px}
+.cptform h4{margin:0 0 10px;font-size:16px}
+.cptform p{margin:2px 0 0}
+.cptform .boutons{margin:4px 0}
+.cptform .boutons button{padding:6px}
+.cptform label{display:block;font-size:13px;color:#33475b}
+.cptform input,.cptform select{display:block;width:100%;box-sizing:border-box;margin-top:1px;padding:4px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
+.cptform input.gris{background:#d9dde2;font-weight:700}
+.grille{display:grid;gap:5px 14px;margin-bottom:6px}
+.g5{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g6{grid-template-columns:minmax(100px,1fr) minmax(125px,1.2fr) minmax(60px,.6fr) repeat(3,minmax(90px,1fr));gap:5px 8px}
+.g6 label{font-size:12px}
+.g6 input,.g6 select{font-size:14px;padding:3px 4px}
+@media (max-width:700px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.coupures{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:3px 14px;margin:2px 0 6px}
+.cp{display:grid;grid-template-columns:52px 14px 1fr 14px 1fr;align-items:center;gap:6px}
+.cp input{margin:0}.cp .v{font-weight:700}
+.boutons{display:flex;gap:14px;margin:6px 0}
+.boutons button{flex:1;max-width:220px;font-size:16px;padding:10px;border:1px solid #888;border-radius:6px;cursor:pointer;font-weight:700}
+.boutons .rouge{background:#ffbcbc}.boutons .vert{background:#7dff7d}
+table.cpt input[type=checkbox]{width:20px;height:20px}
+#abar{position:fixed;top:0;left:0;right:0;height:52px;background:#1a2b4c;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;z-index:50;box-shadow:0 2px 6px #0004;font-family:system-ui,sans-serif}
+#abar b{font-size:17px}
+#burger{width:44px;height:44px;border:0;background:transparent;color:#fff;font-size:28px;line-height:1;cursor:pointer;border-radius:8px}
+#burger:hover,#burger:focus{background:#ffffff22}
+#veil{position:fixed;inset:0;background:#0006;z-index:1999;display:none}
+#veil.open{display:block}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:300px;max-width:85vw;background:#fff;z-index:2000;transform:translateX(100%);transition:transform .2s;box-shadow:-4px 0 16px #0005;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
+#drawer.open{transform:none}
+#drawer .tete{display:flex;justify-content:space-between;align-items:center;padding:12px 8px 12px 18px;background:#1a2b4c;color:#fff;font-weight:700}
+#drawer .tete button{border:0;background:transparent;color:#fff;font-size:26px;cursor:pointer;width:44px;height:44px}
+.mi{display:block;width:100%;text-align:left;font-size:17px;padding:16px 18px;border:0;border-bottom:1px solid #e6e9f0;background:#fff;color:#1a2b4c;cursor:pointer}
+.mi:hover,.mi:focus{background:#f1f4fa}
+.mi.on{background:#e8eefb;font-weight:700}
+#drawer .pied{margin-top:auto;padding:12px 18px;color:#777;font-size:12px}
+#onglets-recap{flex-wrap:wrap;margin:8px 0 14px}
+#recap-contenu{max-width:1100px}
+#recap-contenu .rbar{margin-bottom:12px}
+#recap-contenu select{font-size:16px;padding:6px 8px}
+#rtab{background:#fff;padding:12px;border-radius:8px}
+.indiv2{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.indiv2 table{width:auto;min-width:280px;flex:1 1 280px;max-width:420px}
+table.cpt.ind td:first-child{text-align:left}
+table.cpt.ind td:nth-child(n+2){text-align:right}
+table.cpt.eqt td{text-align:right}
+table.cpt.eqt td:nth-child(-n+4){text-align:left}
+table.cpt.eqt td:first-child{text-align:center}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="abar"><b id="atitre">Calendriers — Administration</b><div style="display:flex;align-items:center;gap:6px"><button id="cpt-fermer" style="display:none">Fermer session de comptage</button><button id="cpt-poches" style="display:none">🧾 Comptage des poches</button><button id="cpt-histo" style="display:none">📜 Historique des comptages<small>suivi de l'année en cours</small></button><button id="cpt-actu" style="display:none">🔄 Actualiser</button><button id="burger" aria-label="Menu" aria-expanded="false">☰</button></div></div>
+<div id="veil"></div>
+<div id="histo"><div class="tete"><b id="histo-titre">Historique des comptages — suivi de l'année en cours</b><span style="display:flex;gap:8px"><button class="pdf" id="histo-pdf" style="display:none">📄 PDF</button><button id="histo-fermer">Fermer</button></span></div><div class="corps" id="histo-corps"></div></div>
+<nav id="drawer" aria-label="Menu d'administration">
+  <div class="tete"><span>Menu</span><button id="fermer" aria-label="Fermer le menu">×</button></div>
+  <button class="mi" id="ab-couches" data-titre="Téléchargement des couches">⬇️ Téléchargement des couches</button>
+  <button class="mi" id="ab-recap" data-titre="Récapitulatif">📊 Récapitulatif des tournées</button>
+  <button class="mi" id="ab-cpt" data-titre="Comptage">🧮 Comptage</button>
+  <button class="mi" id="ab-param" data-titre="Paramètres">⚙️ Paramètres</button>
+  <div class="pied">Administration · menu v1</div>
+</nav>
+<div id="admin"><div class="in" style="padding-top:76px">
+  <div id="apanel"><p class="note">Choisis une rubrique dans le menu ☰ (en haut à droite).</p></div>
+  <div id="apanelcpt" style="display:none"></div>
+</div></div>
+<select id="eqsel"><option value="">Toutes les équipes</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select>
+<button id="manuel">➕ Point</button><div id="zoomhint">Zoomez pour afficher les points</div>
+<div id="aide">Touchez la carte pour placer le point</div>
+<button id="recapbtn">📊 Récap</button>
+<div id="filtres"><button data-t="don">💶 Don</button><button data-t="absent">🚪 Absent</button><button data-t="inoccupe">🏚️ Inoccupé</button></div>
+<div id="bar">
+  <button id="don">💶 Don reçu</button>
+  <button id="abs">🚪 Absent</button>
+  <button id="liste">📋 Absents</button>
+</div>
+<div id="modal"><div class="box">
+  <b id="titre">Don reçu</b>
+  <input id="nom" type="text" placeholder="Nom">
+  <input id="adresse" type="text" placeholder="Adresse / lieu-dit">
+  <input id="montant" type="number" inputmode="decimal" placeholder="€">
+  <select id="mode"><option>Espèces</option><option>Chèque</option></select>
+  <input id="note" type="text" placeholder="Note (facultatif)">
+  <div class="row"><button id="ok" style="background:#2e9e4f;color:#fff">Valider</button><button id="cancel">Annuler</button></div>
+</div></div>
+<div id="panel" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
+  <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><b id="ptitre">Personnes absentes</b><button id="pclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
+  <div id="plist"></div>
+</div>
+
+<script>
+// Affiche toute erreur en rouge en haut de l'écran (aide au diagnostic)
+function erreur(m){const b=document.createElement('div');b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9999;background:#c00;color:#fff;padding:6px;font-size:12px';b.textContent='Erreur : '+m;document.body.appendChild(b)}
+window.onerror=(m,u,l)=>erreur(m+' (ligne '+l+')');
+window.addEventListener('unhandledrejection',e=>erreur(String(e.reason)));
+if(!window.L){document.body.insertAdjacentHTML('afterbegin','<div style="padding:24px;font:17px sans-serif">La carte n\'a pas pu se charger (problème de connexion). Rechargez la page.</div>');throw new Error('Leaflet non chargé')}
+// Mode test : ouvrir l'adresse avec ?test=1 (rien n'est envoyé au Google Sheet)
+const TEST=new URLSearchParams(location.search).has('test');
+if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
+const API='https://script.google.com/macros/s/AKfycbyaoNUItVWqDNfh7fyHkCikQBRAYvuIrbMq-oQkg-5eddEHOoGD9YVVduEH-K5BfGvwWQ/exec';
+document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='ADMIN BETA — données de la copie de test';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1a73e8cc;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
+L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
+const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+
+// Couches des secteurs (fichiers GeoJSON à côté de index.html)
+const COUL=['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6','#bcf60c','#008080','#9a6324','#800000','#808000','#000075'];
+// Secteur (équipe) d'un point : croisement avec les polygones
+const SECT=[];
+function dans(pt,ring){let c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+function secteurDe(lng,lat){
+  const pt=[lng,lat];
+  for(const z of SECT)for(const P of z.polys){
+    const b=P.b;if(lng<b[0]||lng>b[2]||lat<b[1]||lat>b[3])continue;
+    if(dans(pt,P.rings[0])&&!P.rings.slice(1).some(h=>dans(pt,h)))return z;
+  }
+  return null;
+}
+function eqPos(lat,lng){const z=secteurDe(lng,lat);return z?{equipe:z.equipe,zone:z.zone}:{equipe:'',zone:''}}
+function equipe(a){if(a.eq===undefined&&SECT.length){const z=secteurDe(a.lng,a.lat);a.eq=z?z.equipe:'';a.zone=z?z.zone:''}return a}
+function ligneEq(a){equipe(a);return a.eq===undefined?'':(a.eq!==''?`Équipe ${esc(a.eq)} · ${esc(a.zone)}`:'Secteur non défini')}
+function secteurs(url,zone){
+  const g=L.layerGroup().addTo(map);
+  fetch(url+'?v='+Date.now()).then(r=>r.json()).then(d=>{
+    const feats=(d.features||[]).filter(f=>f.geometry&&f.geometry.coordinates&&f.geometry.coordinates.length&&f.properties&&f.properties.equipe!=null);
+    feats.forEach(f=>{const g=f.geometry,P=g.type==='MultiPolygon'?g.coordinates:[g.coordinates];SECT.push({zone,equipe:f.properties.equipe,polys:P.map(rings=>{const xs=rings[0].map(q=>q[0]),ys=rings[0].map(q=>q[1]);return{rings,b:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]}})})});
+    L.geoJSON({type:'FeatureCollection',features:feats},{
+      interactive:false,
+      style:f=>{const c=COUL[(f.properties.equipe-1)%COUL.length];return{color:c,weight:2,fillColor:c,fillOpacity:.25}},
+      onEachFeature:(f,l)=>l.bindTooltip('Éq. '+f.properties.equipe,{permanent:true,direction:'center',className:'eq'})
+    }).addTo(g);
+  }).catch(()=>{});
+  return g;
+}
+const gAdr=L.featureGroup();
+const gAdrCtl=L.layerGroup().addTo(map); // case « Adresses » du menu des couches
+L.control.layers(null,{'Secteurs campagne':secteurs('secteurs_campagne.geojson','campagne'),'Secteurs ville':secteurs('secteurs_ville.geojson','ville'),'Adresses':gAdrCtl},{collapsed:true}).addTo(map);
+
+let pos = null, me = null, first = true, total = 0;
+const items = [];
+// (admin : pas de géolocalisation)
+
+const pts={};
+const touched=new Set();
+const COLS={don:'#2e9e4f',absent:'#e08a00',inoccupe:'#8e24aa',refus:'#d32f2f',pompier:'#1a73e8',supprimer:'#000'};
+const key=r=>r.ida||('p'+r.lat+','+r.lng);
+const carre=col=>L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid #fff;box-shadow:0 0 3px #000"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
+// Couleur d'un point selon ses logements : orange si un absent, sinon vert si un don, sinon violet
+const couleurMk=mk=>{const t=Object.values(mk.L).map(r=>r.type);return t.includes('absent')?COLS.absent:t.includes('don')?COLS.don:t.length?COLS.inoccupe:'#777'};
+function addMarker(r){
+  if(r.lat===''||r.lng===''||r.lat==null||r.lng==null)return;
+  const k=key(r),base=k.split('#')[0],n=k.includes('#')?(+k.split('#')[1]||1):1;
+  let mk=pts[base];
+  if(!mk){
+    mk=L.marker([r.lat,r.lng],{icon:carre(COLS[r.type]||COLS.absent)}).addTo(map);
+    mk.gps=true;mk.L={};mk.a={id:base,adresse:'',nom:'',lat:r.lat,lng:r.lng,statut:''};
+    mk.on('click',()=>showAdr(mk));
+    pts[base]=mk;
+  }
+  const prev=mk.L[n];mk.L[n]=r;
+  mk.D=mk.D||{};
+  if(r.type==='don'){if(!prev||prev.type!=='don'||!mk.D[n])mk.D[n]=r.date}else delete mk.D[n];
+  const col=couleurMk(mk);
+  if(mk.gps)mk.setIcon(carre(col));else mk.setStyle({fillColor:col,radius:8});
+  if(mk.gps&&r.adresse)mk.a.adresse=r.adresse;
+  const i=items.findIndex(x=>key(x.r)===k);if(i>=0)items.splice(i,1);
+  items.push({r,mk,n});touched.add(mk);majBtn();applyFilters();
+}
+
+// File d'attente (réseau faible sur le terrain)
+const getQ=()=>JSON.parse(localStorage.getItem('q')||'[]');
+const setQ=q=>localStorage.setItem('q',JSON.stringify(q));
+let envoi=false;
+async function flush(){
+  return; // admin : lecture seule, aucun envoi
+  if(TEST||envoi)return;envoi=true;let ok=true;
+  try{
+    while(getQ().length){
+      const r=getQ()[0];
+      await fetch(API,{method:'POST',mode:'no-cors',body:JSON.stringify(r)});
+      setQ(getQ().slice(1));
+    }
+  }catch(e){ok=false}
+  envoi=false;
+  if(ok&&getQ().length)flush();
+}
+function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));
+  if(TEST){addMarker(r);return}
+ setQ([...getQ(),r]);addMarker(r);flush()}
+
+function needPos(){if(!pos){alert('Position GPS pas encore trouvée');return false}return true}
+
+const esc=s=>String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const $=id=>document.getElementById(id);
+
+// Adresse automatique (OpenStreetMap / Nominatim)
+async function adresse(p){
+  try{
+    const c=new AbortController();setTimeout(()=>c.abort(),4000);
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=fr&lat=${p.lat}&lon=${p.lng}`,{signal:c.signal});
+    const a=(await r.json()).address||{};
+    return [[a.house_number,a.road].filter(Boolean).join(' '),
+            a.hamlet||a.isolated_dwelling||a.locality||a.neighbourhood,
+            a.village||a.town||a.city||a.municipality].filter(Boolean).join(', ');
+  }catch(e){return ''}
+}
+
+let cur=null;
+function ouvrir(type,a,n,rec){
+  if(!a&&!needPos())return;
+  n=n||1;
+  const ida=a?(n>1?a.id+'#'+n:a.id):'';
+  if(type==='inoccupe'&&a){save({type:'inoccupe',ida,lat:a.lat,lng:a.lng,nom:rec?rec.nom||'':'',adresse:a.adresse,montant:0,mode:'',note:rec?rec.note||'':''});return}
+  cur=a?{lat:a.lat,lng:a.lng,type,ida}:{...pos,type};
+  ['nom','adresse','montant','note'].forEach(i=>$(i).value='');
+  const don=type==='don';
+  $('titre').textContent=(don?'Don reçu':'Personne absente')+(n>1?' — Logement '+n:'');
+  $('montant').style.display=$('mode').style.display=don?'':'none';
+  $('modal').style.display='flex';
+  $('nom').focus();
+  if(a&&!a.manuel){
+    $('adresse').value=a.adresse||'';
+    if(rec){$('nom').value=rec.nom||'';$('note').value=rec.note||'';if(don&&rec.type==='don'){$('montant').value=rec.montant;$('mode').value=rec.mode||'Espèces'}}
+  }else adresse(cur).then(x=>{if(!$('adresse').value)$('adresse').value=x});
+}
+$('don').onclick=()=>ouvrir('don');
+$('abs').onclick=()=>ouvrir('absent');
+$('cancel').onclick=()=>$('modal').style.display='none';
+$('ok').onclick=()=>{
+  const don=cur.type==='don';
+  const m=don?parseFloat($('montant').value.replace(',','.')):0;
+  if(don&&!(m>=0)){alert('Montant ?');return}
+  save({type:cur.type,ida:cur.ida||'',lat:cur.lat,lng:cur.lng,nom:$('nom').value,adresse:$('adresse').value,montant:m,mode:don?$('mode').value:'',note:$('note').value});
+  $('modal').style.display='none';
+};
+
+// Liste des absents
+const absents=()=>{const e=$('eqsel').value;return items.filter(i=>i.r.type==='absent'&&(!e||String(equipe(i.mk.a).eq)===e))};
+function majBtn(){$('liste').textContent='📋 Absents ('+absents().length+')'}
+$('eqsel').onchange=()=>{try{localStorage.setItem('eq',$('eqsel').value)}catch(e){}majBtn()};
+try{$('eqsel').value=localStorage.getItem('eq')||''}catch(e){}
+$('liste').onclick=()=>{
+  const l=absents();
+  $('ptitre').textContent='Personnes absentes'+($('eqsel').value?' — Équipe '+$('eqsel').value:'');
+  $('plist').innerHTML=l.length?'':'<p style="padding:16px">Aucun absent.</p>';
+  l.forEach(({r,mk,n})=>{
+    const d=document.createElement('div');
+    d.style.cssText='padding:12px 14px;border-bottom:1px solid #ddd';
+    d.innerHTML=`<b>${esc(r.nom)||'(sans nom)'}</b>${n>1?' · Logement '+n:''}<br>${esc(r.adresse)||'adresse inconnue'}`+(ligneEq(mk.a)?`<br>${ligneEq(mk.a)}`:'')+(r.note?`<br><i>${esc(r.note)}</i>`:'');
+    d.onclick=()=>{$('panel').style.display='none';map.setView([r.lat,r.lng],18);showAdr(mk)};
+    $('plist').appendChild(d);
+  });
+  $('panel').style.display='block';
+};
+$('pclose').onclick=()=>$('panel').style.display='none';
+
+// Charger l'historique
+// Récapitulatif ville / campagne
+const fmt=n=>n.toFixed(2).replace('.00','').replace('.',',')+' €';
+let OBJ=null,OBJ_ANNEE=''; // calendriers de l'année à comparer (feuille Historique)
+function chargerObj(){return fetch(API+'?objectifs=1').then(r=>r.json()).then(d=>{if(d&&Array.isArray(d.objectifs)){OBJ=d.objectifs;OBJ_ANNEE=d.annee||''}}).catch(()=>{})}
+const ouverts=new Set(); // jours dont le détail est ouvert
+const jourLocal=dt=>{const d=new Date(dt);return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function rendreRecap(){
+  const e=$('rsel').value;
+  const R={ville:{real:0,somme:0},campagne:{real:0,somme:0}};
+  const zone=a=>{equipe(a);return a.zone&&(!e||String(a.eq)===e)?R[a.zone]:null};
+  const J={}; // jour -> dons par zone (équipe choisie)
+  const T={};for(let t=1;t<=13;t++)T[t]={ville:0,campagne:0,vo:0,co:0}; // par tournée (toutes les tournées)
+  Object.values(pts).forEach(mk=>{
+    const z=zone(mk.a);if(!z)return;
+    Object.values(mk.L).forEach(r=>{if(r.type==='don'){z.real++;z.somme+=Number(r.montant)||0}});
+    if(!e){const t=+mk.a.eq;if(T[t])Object.values(mk.L).forEach(r=>{if(r.type==='don')T[t][mk.a.zone]++})}
+    if(e)Object.entries(mk.D||{}).forEach(([n,dt])=>{const k=jourLocal(dt);if(!k)return;const x=J[k]=J[k]||{ville:0,campagne:0,sville:0,scampagne:0,dons:[]};const r=mk.L[n]||{};x[mk.a.zone]++;x['s'+mk.a.zone]+=Number(r.montant)||0;x.dons.push({dt,nom:r.nom,lieu:(mk.a.adresse||r.adresse||'Position GPS')+(+n>1?' · logement '+n:''),m:Number(r.montant)||0})});
+  });
+  const O={ville:0,campagne:0};
+  if(OBJ)OBJ.forEach(x=>{if(!e||String(x.t)===e){O.ville+=Number(x.ville)||0;O.campagne+=Number(x.campagne)||0}if(T[x.t]){T[x.t].vo=Number(x.ville)||0;T[x.t].co=Number(x.campagne)||0}});
+  const V=R.ville,C=R.campagne;
+  const ligne=(t,a,b,f)=>`<tr><td>${t}</td><td>${f(a)}</td><td>${f(b)}</td><td>${f(a+b)}</td></tr>`;
+  const tiret='<td>—</td>';
+  const moy=(som,n)=>n?fmt(som/n):'—';
+  const ecart=n=>n<0?`<b style="color:#d32f2f">${String(n).replace('-','−')}</b>`:n>0?`<b style="color:#2e9e4f">+${n}</b>`:'0';
+  let h='<table class="t1"><tr><th></th><th>Ville</th><th>Campagne</th><th>Total</th></tr>'
+    +(OBJ?ligne("Calendriers de l'an dernier",O.ville,O.campagne,String):'<tr><td>Calendriers de l\'an dernier</td>'+tiret+tiret+tiret+'</tr>')
+    +ligne('Calendriers réalisés',V.real,C.real,String)
+    +(e?`<tr><td>Moyenne par calendrier</td><td>${moy(V.somme,V.real)}</td><td>${moy(C.somme,C.real)}</td><td>${moy(V.somme+C.somme,V.real+C.real)}</td></tr>`:'')
+    +(OBJ?ligne('Écart (cette année − an dernier)',V.real-O.ville,C.real-O.campagne,ecart):'<tr><td>Écart (cette année − an dernier)</td>'+tiret+tiret+tiret+'</tr>')
+    +'</table><p style="font-size:13px;color:#555">Écart = réalisés cette année − calendriers de l\'an dernier (feuille Historique'+(OBJ_ANNEE?', année '+OBJ_ANNEE:'')+') ; négatif (rouge) = en retard sur l\'an dernier, positif (vert) = en avance. Réalisés = logements avec don, dans un secteur tracé.</p>';
+  if(!e){
+    const dif=(a,b)=>OBJ?ecart(a-b):'—';
+    h+='<h4>Détail par tournée</h4><div style="overflow-x:auto"><table class="t2"><tr><th>Tournée</th><th>Campagne</th><th>Dif campagne</th><th>Ville</th><th>Dif ville</th><th>Total</th><th>Dif total</th></tr>'
+      +Object.keys(T).map(t=>{const x=T[t];return `<tr><td>${t}</td><td>${x.campagne}</td><td>${dif(x.campagne,x.co)}</td><td>${x.ville}</td><td>${dif(x.ville,x.vo)}</td><td>${x.campagne+x.ville}</td><td>${dif(x.campagne+x.ville,x.co+x.vo)}</td></tr>`}).join('')
+      +'</table></div>';
+  }
+  if(e){
+    const jours=Object.keys(J).sort().reverse();
+    h+=`<h4>Calendriers par jour — Équipe ${esc(e)}</h4>`;
+    h+=jours.length?'<div style="overflow-x:auto"><table class="t2"><tr><th>Date</th><th>Ville</th><th>Campagne</th><th>Total</th><th>€ ville</th><th>€ campagne</th><th>€ total</th></tr>'
+      +jours.map(k=>{
+        const x=J[k],ouvert=ouverts.has(k);
+        const det=x.dons.sort((p,q)=>String(p.dt).localeCompare(String(q.dt))).map(d=>`<tr><td>${esc(d.nom)||'(sans nom)'}</td><td>${esc(d.lieu)}</td><td>${fmt(d.m)}</td></tr>`).join('');
+        return `<tr data-j="${k}" style="cursor:pointer"><td><b class="fl">${ouvert?'▾':'▸'}</b> ${k.split('-').reverse().join('/')}</td><td>${x.ville}</td><td>${x.campagne}</td><td>${x.ville+x.campagne}</td><td>${fmt(x.sville)}</td><td>${fmt(x.scampagne)}</td><td>${fmt(x.sville+x.scampagne)}</td></tr>`
+          +`<tr class="det" style="${ouvert?'':'display:none'}"><td colspan="7"><table class="t3"><tr><th>Nom</th><th>Lieu</th><th>Somme</th></tr>${det}<tr><td colspan="2"><b>Total · ${x.dons.length} calendrier${x.dons.length>1?'s':''}</b></td><td><b>${fmt(x.sville+x.scampagne)}</b></td></tr></table></td></tr>`;
+      }).join('')+'</table></div>'
+      :'<p style="color:#555">Aucun calendrier enregistré pour l\'instant.</p>';
+  }
+  $('rtab').innerHTML=h;
+}
+function afficherOngletRecap(o){
+  document.querySelectorAll('#onglets-recap button').forEach(b=>b.classList.toggle('on',b.dataset.o===o));
+  const z=$('recap-contenu');
+  if(o==='app'){
+    z.innerHTML='<div class="rbar"><select id="rsel"><option value="">Toutes les tournées</option>'+[...Array(13)].map((_,i)=>`<option value="${i+1}">Équipe ${i+1}</option>`).join('')+'</select></div><div id="rtab"></div>';
+    $('rsel').onchange=()=>{ouverts.clear();rendreRecap()};
+    $('rtab').onclick=clicRecap;
+    rendreRecap();
+  }else if(o==='indiv'){
+    z.innerHTML='<div id="indiv"><p class="note">Chargement…</p></div>';
+    rendreIndiv();
+  }else{
+    z.innerHTML='<div id="equipe"><p class="note">Chargement…</p></div>';
+    rendreEquipe();
+  }
+}
+// Récapitulatif par équipe : reproduit la feuille Recap_equipe (Ville / Campagne / Total : Nbr · Diff · Moy)
+async function rendreEquipe(){
+  let rows=null;
+  try{
+    const d=await fetch(API+'?recapequipe=1&t='+Date.now()).then(r=>r.json());
+    if(d&&Array.isArray(d.rows)&&d.rows.length&&'ville' in d.rows[0])rows=d.rows;
+  }catch(e){}
+  const branche=!!rows;
+  if(!rows){ // lecture de la feuille pas encore branchée : mise en page avec les équipes de Parametres
+    try{if(!PARAM_REF)await chargerParametres()}catch(e){}
+    const vide={nbr:null,diff:null,moy:null};
+    rows=PARAM_REF?[...PARAM_REF.equipes].sort((a,b)=>a.t-b.t).map(q=>({t:q.t,secteur:q.nom,e1:q.e1,e2:q.e2,ville:vide,campagne:vide,total:vide})):[];
+  }
+  if(!$('equipe'))return; // on a changé d'onglet entre-temps
+  const nb=v=>v===null||v===undefined?(branche?'':'—'):v;
+  const mo=v=>v===null||v===undefined?(branche?'':'—'):fmt(v);
+  const tri=x=>`<td>${nb(x.nbr)}</td><td>${x.diff===null||x.diff===undefined?'':x.diff}</td><td>${mo(x.moy)}</td>`;
+  $('equipe').innerHTML='<div style="display:flex;gap:12px;align-items:flex-start"><div style="overflow-x:auto;flex:1;min-width:0"><table class="cpt eqt">'
+    +'<tr><th colspan="4"></th><th colspan="3">Ville</th><th colspan="3">Campagne</th><th colspan="3">Total</th></tr>'
+    +'<tr><th>Tournée</th><th>Secteur</th><th>Équipier 1</th><th>Équipier 2</th>'+'<th>Nbr</th><th>Diff</th><th>Moy</th>'.repeat(3)+'</tr>'
+    +rows.map(r=>`<tr><td>${esc(r.t)}</td><td>${esc(r.secteur)}</td><td>${esc(r.e1)}</td><td>${esc(r.e2)}</td>${tri(r.ville)}${tri(r.campagne)}${tri(r.total)}</tr>`).join('')
+    +'</table></div><button class="pdf" id="eq-pdf" title="Imprimer ou enregistrer en PDF">📄 PDF</button></div>'
+    +(branche?'':'<p class="note">Mise en page seule pour l\'instant : les chiffres apparaîtront quand la lecture de la feuille Recap_equipe sera branchée.</p>');
+  $('eq-pdf').onclick=imprimerEquipe;
+}
+// Récapitulatif individuel : reproduit la feuille Recap_pers (Nom · Fait · Reste à faire)
+async function rendreIndiv(){
+  let rows=null;
+  try{
+    const d=await fetch(API+'?recappers=1&t='+Date.now()).then(r=>r.json());
+    if(d&&Array.isArray(d.rows)&&d.rows.length&&'fait' in d.rows[0])rows=d.rows;
+  }catch(e){}
+  const branche=!!rows;
+  if(!rows){ // lecture de la feuille pas encore branchée : on affiche la mise en page avec le personnel de Parametres
+    try{if(!PARAM_REF)await chargerParametres()}catch(e){}
+    rows=PARAM_REF?[...PARAM_REF.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr')).map(p=>({nom:p.code,fait:null,reste:null})):[];
+  }
+  if(!$('indiv'))return; // on a changé d'onglet entre-temps
+  rows=rows.filter(r=>String(r.nom||'').trim()!=='');
+  const cell=v=>v===null||v===undefined?'—':v;
+  // la feuille a deux blocs côte à côte (champ « bloc ») ; sinon on coupe la liste en deux
+  const nb=Math.ceil(rows.length/2);
+  const gauche=rows.some(r=>r.bloc)?rows.filter(r=>r.bloc===1):rows.slice(0,nb);
+  const droite=rows.some(r=>r.bloc)?rows.filter(r=>r.bloc===2):rows.slice(nb);
+  const bloc=L=>`<table class="cpt ind"><tr><th>Nom</th><th>Fait</th><th>Reste à faire</th></tr>${L.map(r=>`<tr><td>${esc(r.nom)}</td><td>${cell(r.fait)}</td><td>${cell(r.reste)}</td></tr>`).join('')}</table>`;
+  $('indiv').innerHTML='<h4 style="margin:4px 0 10px">Décompte des calendriers par personne</h4>'
+    +'<div style="display:flex;gap:12px;align-items:flex-start"><div class="indiv2" style="flex:1;min-width:0">'+bloc(gauche)+bloc(droite)+'</div><button class="pdf" id="ind-pdf" title="Imprimer ou enregistrer en PDF">📄 PDF</button></div>'
+    +(branche?'':'<p class="note">Mise en page seule pour l\'instant : les chiffres « Fait » et « Reste à faire » apparaîtront quand la lecture de la feuille Recap_pers sera branchée.</p>');
+  $('ind-pdf').onclick=imprimerIndiv;
+}
+function recap(){
+  ouverts.clear();
+  panneau(`<h3>Récapitulatif</h3>
+    <div id="onglets-recap" class="onglets">
+      <button data-o="app">Récapitulatif de l'application</button>
+      <button data-o="equipe">Récapitulatif par équipe</button>
+      <button data-o="indiv">Récapitulatif individuel</button>
+    </div>
+    <div id="recap-contenu"></div>`,true);
+  document.querySelectorAll('#onglets-recap button').forEach(b=>b.onclick=()=>afficherOngletRecap(b.dataset.o));
+  afficherOngletRecap('app');
+  chargerObj().then(()=>{if($('rtab')&&$('rsel'))rendreRecap()});
+}
+
+// Export : une couche (GeoJSON) avec tous les points d'adresse et leur statut — sans noms ni montants
+function exporterCouche(){
+  const feats=[];
+  Object.values(pts).forEach(mk=>{
+    const a=equipe(mk.a),rs=Object.values(mk.L),nb=t=>rs.filter(r=>r.type===t).length;
+    const statut=!rs.length?'non renseigné':nb('absent')?'absent':nb('don')?'don':nb('refus')?'refus':nb('pompier')?'pompier':nb('supprimer')?'à supprimer':'inoccupé';
+    const jours=rs.map(r=>jourLocal(r.date)).filter(Boolean).sort();
+    feats.push({type:'Feature',
+      properties:{id:a.id,adresse:a.adresse||'',statut,logements:rs.length,dons:nb('don'),absents:nb('absent'),inoccupes:nb('inoccupe'),
+        equipe:a.eq===undefined||a.eq===''?null:a.eq,zone:a.zone||'',derniere_saisie:jours.length?jours[jours.length-1]:'',source:mk.gps?'position':'adresse'},
+      geometry:{type:'Point',coordinates:[a.lng,a.lat]}});
+  });
+  const blob=new Blob([JSON.stringify({type:'FeatureCollection',features:feats})],{type:'application/geo+json'});
+  const url=URL.createObjectURL(blob),lien=document.createElement('a');
+  lien.href=url;lien.download='habitations_'+jourLocal(new Date().toISOString())+'.geojson';
+  document.body.appendChild(lien);lien.click();lien.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+
+// ---- Menu d'administration
+function majEtat(){}   // l'affichage du nombre d'adresses / logements a été retiré
+function panneau(html,large){$('apanelcpt').style.display='none';$('apanel').style.display='';$('apanel').innerHTML=html;$('admin').scrollTop=0;$('admin').querySelector('.in').classList.toggle('large',!!large)}
+// ---- Menu hamburger
+function ouvrirMenu(o){$('drawer').classList.toggle('open',o);$('veil').classList.toggle('open',o);$('burger').setAttribute('aria-expanded',String(o))}
+$('burger').onclick=()=>ouvrirMenu(!$('drawer').classList.contains('open'));
+$('fermer').onclick=()=>ouvrirMenu(false);
+$('veil').onclick=()=>ouvrirMenu(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')ouvrirMenu(false)});
+document.querySelectorAll('#drawer .mi').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#drawer .mi').forEach(x=>x.classList.remove('on'));b.classList.add('on');ouvrirMenu(false);
+  $('atitre').textContent=b.dataset.titre;
+  PAGE=b.id;majBandeauCpt();
+}));
+// ---- Nouveau adresses.geojson pour l'année suivante : on garde les adresses selon les types renseignés
+// + on y ajoute les points posés à la main ou à la position (ils deviennent de vraies adresses)
+const TYPES_ADR=[['don','💶 Don'],['absent','🚪 Absent'],['inoccupe','🏚️ Inoccupé'],['refus','🚫 Refus'],['pompier','🚒 Pompier'],['supprimer','⚫ À supprimer']];
+const typesDe=mk=>new Set(Object.values(mk.L||{}).map(r=>r.type));
+function statsAdr(){
+  const s={t:{},nr:0,man:0};
+  TYPES_ADR.forEach(([t])=>{s.t[t]=0});
+  Object.values(pts).forEach(mk=>{
+    const ts=typesDe(mk);
+    if(mk.gps)s.man++;else if(!ts.size)s.nr++;
+    ts.forEach(t=>{if(t in s.t)s.t[t]++});
+  });
+  return s;
+}
+function blocAdresses(){
+  const s=statsAdr();
+  return `<h3 style="margin-top:28px">Adresses pour l'année prochaine</h3>
+    <p class="note">Génère un nouveau fichier <b>adresses.geojson</b> qui ne garde que les adresses dont un type coché a été renseigné cette année. Tu le déposes ensuite sur GitHub à la place de l'ancien (garde l'ancien de côté).</p>
+    ${TYPES_ADR.map(([t,l])=>`<label class="affc"><input type="checkbox" id="adr-t-${t}"${t==='supprimer'?'':' checked'}> ${l} <span class="note">(${s.t[t]})</span></label>`).join('')}
+    <label class="affc"><input type="checkbox" id="adr-nr"> Garder aussi les adresses non renseignées cette année <span class="note">(${s.nr})</span></label>
+    <label class="affc"><input type="checkbox" id="adr-man" checked> Ajouter les points posés à la main ou à la position <span class="note">(${s.man})</span></label>
+    <p class="note" style="margin-top:16px"><b>Informations à ajouter à chaque adresse</b> (pour QGIS) :</p>
+    <label class="affc"><input type="checkbox" id="adr-p-nom"> Nom</label>
+    <label class="affc"><input type="checkbox" id="adr-p-type"> Type</label>
+    <label class="affc"><input type="checkbox" id="adr-p-equipe"> Équipe</label>
+    <label class="affc"><input type="checkbox" id="adr-p-zone"> Zone (ville / campagne)</label>
+    <p class="note">Dès qu'une information est cochée, le fichier prend un autre nom (adresses_QGIS…) pour ne jamais remplacer par erreur celui de l'application. Pour une adresse à plusieurs logements, les noms et les types sont séparés par « | ».</p>
+    <p id="adr-conf" class="note" style="color:#b71c1c;font-weight:700;display:none">⚠ Le nom est une donnée personnelle : ne dépose jamais ce fichier sur GitHub (l'application a besoin de adresses.geojson sans cette information).</p>
+    <p id="adr-res" class="note" style="font-weight:700"></p>
+    <button class="bt" id="dl-adr">⬇️ Télécharger adresses.geojson</button>
+    <p id="adr-msg" class="note"></p>`;
+}
+const choixAdr=()=>({types:new Set(TYPES_ADR.filter(([t])=>$('adr-t-'+t).checked).map(([t])=>t)),nr:$('adr-nr').checked,man:$('adr-man').checked});
+// Une adresse est gardée si au moins un de ses logements a un type coché (ou si elle n'est pas renseignée et que la case est cochée)
+function garderAdr(mk,c){
+  if(mk.gps&&!c.man)return false;
+  const ts=typesDe(mk);
+  if(!ts.size)return c.nr;
+  return [...ts].some(t=>c.types.has(t));
+}
+function majResAdr(){
+  const c=choixAdr();let orig=0,gardees=0,ajoutes=0;
+  Object.values(pts).forEach(mk=>{
+    const k=garderAdr(mk,c);
+    if(mk.gps){if(k)ajoutes++}else{orig++;if(k)gardees++}
+  });
+  $('adr-res').textContent=gardees+' adresses gardées sur '+orig+' ('+(orig-gardees)+' retirées) · '+ajoutes+' point'+(ajoutes>1?'s':'')+' posé'+(ajoutes>1?'s':'')+' à la main ou à la position ajouté'+(ajoutes>1?'s':'');
+}
+const propsChoisies=()=>['nom','type','equipe','zone'].filter(k=>$('adr-p-'+k).checked);
+function nomFichierAdr(){
+  const P=propsChoisies();
+  return !P.length?'adresses.geojson':P.includes('nom')?'adresses_QGIS_confidentiel.geojson':'adresses_QGIS.geojson';
+}
+function majConf(){
+  const P=propsChoisies();
+  $('adr-conf').style.display=P.includes('nom')?'':'none';
+  $('dl-adr').textContent='⬇️ Télécharger '+nomFichierAdr();
+}
+// Informations d'une adresse, d'après les saisies de l'année (un logement = une valeur)
+function infosAdr(mk,P){
+  const L=Object.keys(mk.L||{}).map(Number).sort((a,b)=>a-b).map(n=>mk.L[n]);
+  const joint=f=>{const v=L.map(f);return v.every(x=>!x)?'':v.join(' | ')};
+  const o={};
+  if(P.includes('nom'))o.nom=joint(r=>r.nom||'');
+  if(P.includes('type'))o.type=joint(r=>r.type||'');
+  if(P.includes('equipe')||P.includes('zone')){
+    const a=equipe(mk.a);
+    if(P.includes('equipe'))o.equipe=a.eq===undefined||a.eq===''?null:a.eq;
+    if(P.includes('zone'))o.zone=a.zone||'';
+  }
+  return o;
+}
+async function telechargerAdresses(){
+  const c=choixAdr(),msg=$('adr-msg');
+  let d;
+  try{d=await fetch('adresses.geojson?v='+Date.now()).then(r=>r.json())}catch(e){d=null}
+  if(!d||!Array.isArray(d.features)){msg.textContent="Impossible de relire adresses.geojson : fichier non généré.";msg.style.color='#c62828';return}
+  const P=propsChoisies();
+  const feats=d.features.filter(f=>{const mk=f.properties&&pts[f.properties.id];return mk&&!mk.gps?garderAdr(mk,c):c.nr}).map(f=>{
+    if(!P.length)return f;
+    const mk=(f.properties&&pts[f.properties.id])||{L:{},a:{lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}};
+    return {...f,properties:{...f.properties,...infosAdr(mk,P)}};
+  });
+  let ajoutes=0;
+  Object.values(pts).forEach(mk=>{
+    if(!mk.gps||!garderAdr(mk,c))return;
+    const a=mk.a;
+    feats.push({type:'Feature',properties:{id:a.id,adr:a.adresse||'',...infosAdr(mk,P)},geometry:{type:'Point',coordinates:[Number(a.lng),Number(a.lat)]}});ajoutes++;
+  });
+  const blob=new Blob([JSON.stringify({...d,features:feats})],{type:'application/geo+json'});
+  const url=URL.createObjectURL(blob),lien=document.createElement('a');
+  lien.href=url;lien.download=nomFichierAdr();
+  document.body.appendChild(lien);lien.click();lien.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  msg.textContent='✔ '+nomFichierAdr()+' généré : '+feats.length+' adresses (dont '+ajoutes+' ajoutée'+(ajoutes>1?'s':'')+' depuis les points posés).';msg.style.color='#2e7d32';
+}
+function brancherAdresses(){
+  document.querySelectorAll('#apanel input[id^="adr-"]').forEach(i=>{i.onchange=()=>{majResAdr();majConf()}});
+  majResAdr();majConf();
+  $('dl-adr').onclick=telechargerAdresses;
+}
+$('ab-couches').onclick=()=>{
+  panneau(`<h3>Couches</h3>
+    <button class="bt" id="dl-hab">⬇️ Habitations et statuts (GeoJSON)</button>
+    <p class="note">Un point par adresse, avec le statut (non renseigné, don, absent, inoccupé), l'équipe, la zone, le nombre de logements et la date de dernière saisie. Sans noms ni montants.</p>
+    <p class="note">Fichier confidentiel : ne pas le publier.</p>${blocAdresses()}`);
+  $('dl-hab').onclick=exporterCouche;
+  brancherAdresses();
+};
+$('ab-recap').onclick=recap;
+
+// ---- Comptage : une ligne par jour, par tournée et par secteur (ville / campagne)
+function lignesComptage(){
+  const G={};
+  Object.values(pts).forEach(mk=>{
+    const a=equipe(mk.a);
+    Object.entries(mk.D||{}).forEach(([n,dt])=>{
+      const r=mk.L[n];if(!r||r.type!=='don')return;
+      const jour=jourLocal(dt);if(!jour)return;
+      const t=a.eq===undefined||a.eq===''?'':a.eq,z=a.zone||'';
+      const cle=jour+'|'+(t===''?'99':String(t).padStart(2,'0'))+'|'+(z==='ville'?'1':z==='campagne'?'2':'3');
+      const g=G[cle]=G[cle]||{jour,t,z,n:0,s:0};
+      g.n++;g.s+=Number(r.montant)||0;
+    });
+  });
+  // date la plus récente en premier, puis tournée, puis ville avant campagne
+  return Object.keys(G).sort((x,y)=>{const[a,b]=[x.split('|'),y.split('|')];return b[0].localeCompare(a[0])||a[1].localeCompare(b[1])||a[2].localeCompare(b[2])}).map(k=>G[k]);
+}
+const lireCoches=()=>{try{return JSON.parse(localStorage.getItem('cpt')||'{}')}catch(e){return{}}};
+const VAL=[0.5,1,2,5,10,20,50,100];
+
+
+function formulaireHtml(){
+  const opts=Array.from({length:13},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  const coupures=VAL.map((v,i)=>`<div class="cp"><span class="v">${String(v).replace('.',',')} €</span><span>×</span><input id="c${i}" type="number" min="0" step="1" inputmode="numeric"><span>=</span><input id="m${i}" class="gris" readonly tabindex="-1"></div>`).join('');
+  return `<form class="cptform" id="cf" autocomplete="off" onsubmit="return false">
+    <div class="grille g6">
+      <label>Date<input id="f-date" class="gris" readonly value="${new Date().toLocaleDateString('fr-FR')}"></label>
+      <label>Date tournée<input id="f-dt" type="date"></label>
+      <label>N° tournée<select id="f-t"><option value="">—</option>${opts}</select></label>
+      <label>Équipier 1<select id="f-e1"><option value="">—</option></select></label>
+      <label>Équipier 2<select id="f-e2"><option value="">—</option></select></label>
+      <label>Équipier 3<select id="f-e3"><option value="">—</option></select></label>
+    </div>
+    <div class="grille g4">
+      <label>Campagne / Ville<select id="f-z"><option value="">—</option><option value="campagne">Campagne</option><option value="ville">Ville</option></select></label>
+      <label>Tournée / Boîte aux lettres<select id="f-ty"><option value="tournee">Tournée</option><option value="boite">Boîte aux lettres</option></select></label>
+      <label>Nombre de calendriers<input id="f-nb" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Moyenne<input id="f-moy" class="gris" readonly tabindex="-1"></label>
+    </div>
+    <div class="coupures">${coupures}</div>
+    <div class="grille g5">
+      <label>Chèques (nombre)<input id="f-chn" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Chèques (montant €)<input id="f-chm" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Monnaie (montant €)<input id="f-mon" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Espèces<input id="f-esp" class="gris" readonly tabindex="-1"></label>
+      <label>Total<input id="f-tot" class="gris" readonly tabindex="-1"></label>
+    </div>
+    <div class="boutons"><button type="button" id="f-annuler" class="rouge">Annuler</button><button type="button" id="f-valider" class="vert">Valider</button></div>
+    <p id="f-msg" class="note"></p>
+  </form>`;
+}
+function calcForm(){
+  let esp=0;
+  VAL.forEach((v,i)=>{const q=Math.max(0,Math.floor(Number($('c'+i).value)||0)),m=q*v;$('m'+i).value=q?fmt(m):'';esp+=m});
+  esp+=Number($('f-mon').value)||0;
+  const chq=Number($('f-chm').value)||0,tot=esp+chq,nb=Number($('f-nb').value)||0;
+  $('f-esp').value=fmt(esp);$('f-tot').value=fmt(tot);$('f-moy').value=nb>0?fmt(tot/nb):'';
+  return {esp,chq,tot,nb};
+}
+function msgForm(t,erreur){const m=$('f-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
+function resetForm(){
+  $('cf').querySelectorAll('input:not([readonly]),select').forEach(x=>{if(x.id==='f-ty')x.value='tournee';else x.value=''});
+  document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
+}
+
+// ---- Tri des colonnes (flèches ▲▼ dans les entêtes des deux tableaux du Comptage)
+// TRI.gauche : tableau de gauche (poches) · TRI.liste : tableau des comptages validés de la session
+// Un clic sur la flèche active la désactive (retour à l'ordre d'origine).
+const TRI={gauche:null,liste:null};
+function enteteTri(tab,c,titre){
+  const t=TRI[tab],on=d=>t&&t.c===c&&t.d===d?' class="on"':'';
+  return `<th>${titre}<span class="fl2"><i${on(1)} data-c="${c}" data-d="1" title="Du plus petit au plus grand (A → Z)">▲</i><i${on(-1)} data-c="${c}" data-d="-1" title="Du plus grand au plus petit (Z → A)">▼</i></span></th>`;
+}
+function trier(rows,tab,cols){
+  const t=TRI[tab];if(!t)return rows;
+  const f=cols[t.c];
+  return rows.map((r,k)=>[r,k]).sort((a,b)=>{
+    const x=f(a[0]),y=f(b[0]);
+    const c=(typeof x==='number'&&typeof y==='number')?x-y:String(x).localeCompare(String(y),'fr');
+    return c*t.d||a[1]-b[1];
+  }).map(a=>a[0]);
+}
+function brancherTri(zone,tab,rerendre){
+  zone.querySelectorAll('.fl2 i').forEach(el=>el.onclick=e=>{
+    e.stopPropagation();
+    const c=+el.dataset.c,d=+el.dataset.d,t=TRI[tab];
+    TRI[tab]=(t&&t.c===c&&t.d===d)?null:{c,d};
+    rerendre();
+  });
+}
+// Valeur triée de chaque colonne (dans l'ordre des colonnes affichées)
+const COLS_G=[o=>o.g.jour,o=>o.g.t===''?999:Number(o.g.t),o=>o.g.z==='ville'?'Ville':o.g.z==='campagne'?'Campagne':'Hors secteur',o=>o.g.n,o=>o.g.s,o=>o.g.n?o.g.s/o.g.n:0,o=>o.g.amicale?1:0];
+const COLS_L=[o=>o.r.jour,o=>Number(o.r.t),o=>o.r.z==='ville'?'Ville':'Campagne',o=>o.r.nb,o=>o.r.esp,o=>o.r.chm,o=>o.r.total];
+
+// ---- Récap des comptages validés dans la session (feuille Comptage_poche) : modifier ✏️ / supprimer ❌
+let EDIT_ID='',LISTE=[];
+async function chargerListeSession(){
+  const z=$('cptlist');if(!z)return;
+  const id=SESSION_ID;
+  if(!SESSION||!id){z.innerHTML='';z.classList.remove('ouvert');return}
+  z.classList.add('ouvert');
+  if(TEST){z.innerHTML='<p class="note">Mode test : liste indisponible.</p>';return}
+  try{
+    const d=await fetch(API+'?comptages=1&session='+encodeURIComponent(id)+'&t='+Date.now()).then(x=>x.json());
+    if(!d||!Array.isArray(d.rows))throw new Error('format');
+    if(id!==SESSION_ID||!$('cptlist'))return;
+    LISTE=d.rows.slice().reverse();   // le plus récent en haut
+    LISTE.forEach(r=>GARDEES.add(r.jour+'|'+r.t+'|'+r.z));
+    rendreListe();
+  }catch(e){if($('cptlist'))$('cptlist').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Liste de la session indisponible (Code.gs à mettre à jour et redéployer ?).</p>'}
+}
+function rendreListe(){
+  const z=$('cptlist');if(!z)return;
+  if(!LISTE.length){z.innerHTML='<p class="note">Aucun comptage validé dans cette session.</p>';return}
+  const ordre=trier(LISTE.map((r,i)=>({r,i})),'liste',COLS_L);
+  z.innerHTML='<table class="cpt cptl"><tr>'+enteteTri('liste',0,'Date tournée')+enteteTri('liste',1,'Tournée')+enteteTri('liste',2,'Secteur')+enteteTri('liste',3,'Nbr cal.')+enteteTri('liste',4,'Espèces')+enteteTri('liste',5,'Chèques')+enteteTri('liste',6,'Total')+'<th></th></tr>'
+    +ordre.map(({r,i})=>`<tr${r.id===EDIT_ID?' class="sel"':''}><td>${r.jour.split('-').reverse().join('/')}</td><td>${r.t}</td><td>${r.z==='ville'?'Ville':'Campagne'}</td><td>${r.nb}</td><td>${fmt(r.esp)}</td><td>${fmt(r.chm)}</td><td>${fmt(r.total)}</td><td style="white-space:nowrap"><button class="ib" data-i="${i}" data-a="mod" title="Modifier">✏️</button><button class="ib" data-i="${i}" data-a="sup" title="Supprimer">❌</button></td></tr>`).join('')+'</table>';
+  brancherTri(z,'liste',rendreListe);
+  z.querySelectorAll('button.ib').forEach(b=>b.onclick=()=>b.dataset.a==='mod'?modifierLigne(LISTE[+b.dataset.i]):supprimerLigne(LISTE[+b.dataset.i]));
+}
+async function modifierLigne(r){
+  if(!$('cf'))return;
+  EDIT_ID=r.id;
+  $('f-dt').value=r.jour;$('f-t').value=String(r.t);$('f-z').value=r.z;$('f-ty').value=r.type;$('f-nb').value=r.nb||'';
+  r.q.forEach((n,i)=>{$('c'+i).value=n||''});
+  $('f-chn').value=r.chn||'';$('f-chm').value=r.chm||'';$('f-mon').value=r.mon||'';
+  await prepEquipiers();
+  fixerEquipier('f-e1',r.e1);fixerEquipier('f-e2',r.e2);fixerEquipier('f-e3',r.e3);
+  calcForm();
+  $('f-valider').textContent='Enregistrer la modification';
+  msgForm('Modification du comptage de la tournée '+r.t+' du '+r.jour.split('-').reverse().join('/')+' : corrige puis enregistre, ou Annuler.');
+  rendreListe();
+}
+function sortirEdition(){
+  EDIT_ID='';
+  if($('cf')){resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));$('f-valider').textContent='Valider';msgForm('')}
+  rendreListe();
+}
+// Relit tout ce qui dépend des comptages : totaux de la session, liste, tableau de gauche
+function rafraichirSession(){
+  majTotSession();chargerListeSession();
+  lireRecap().then(d=>tableComptage(d)).catch(()=>{});
+}
+async function supprimerLigne(r){
+  if(!confirm('Supprimer ce comptage ?\nTournée '+r.t+' du '+r.jour.split('-').reverse().join('/')+' ('+(r.z==='ville'?'Ville':'Campagne')+') : '+r.nb+' calendriers, '+fmt(r.total)+'.\nLa poche sera décochée s\'il ne reste aucun autre comptage pour elle.'))return;
+  if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet.",true);return}
+  let d=null;
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'comptageSuppr',id:r.id})});d=await x.json()}catch(e){d=null}
+  if(d&&d.ok){
+    if(EDIT_ID===r.id)sortirEdition();
+    rafraichirSession();msgForm('✔ Comptage supprimé (copie gardée dans la feuille Comptage_poche supprimés).');return;
+  }
+  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : rien ne semble avoir été supprimé. Vérifie la feuille Comptage_poche.',true);
+}
+// Coche automatiquement compt_amicale pour la poche validée (même fonction du Sheet que la case cochée à la main)
+async function cocherPoche(dt,t,z){
+  const num=Number(t);
+  let r=null;
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:dt,t:num,z:z,valeur:true,dateCompt:jourLocal(new Date().toISOString()),session:SESSION_ID})});r=await x.json()}catch(e){r=null}
+  if(!(r&&r.ok))return false;
+  GARDEES.add(dt+'|'+num+'|'+z);
+  const g=RECAP.find(x=>x.jour===dt&&Number(x.t)===num&&x.z===z);if(g){g.amicale=true;g.dc=jourLocal(new Date().toISOString());g.session=SESSION_ID}
+  const tr=document.querySelector(`#cpt-table tr.lg[data-jour="${dt}"][data-t="${num}"][data-z="${z}"]`);
+  if(tr){tr.classList.add('ok');const cb=tr.querySelector('input[type=checkbox]');if(cb)cb.checked=true}
+  return true;
+}
+let COMPTAGE_ID='';
+async function validerForm(){
+  const c=calcForm(),dt=$('f-dt').value,t=$('f-t').value,z=$('f-z').value;
+  const eq=EQ_IDS.map(i=>$(i).value),nonVides=eq.filter(Boolean);
+  if(new Set(nonVides).size<nonVides.length){msgForm("Un équipier ne peut être choisi qu'une seule fois.",true);return}
+  if(!dt||!t||!z){msgForm('Renseigne la date de la tournée, le n° de tournée et campagne / ville.',true);return}
+  if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
+  if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet. Total calculé : "+fmt(c.tot),true);return}
+  if(!COMPTAGE_ID)COMPTAGE_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
+    coupures:VAL.map((v,i)=>Math.max(0,Math.floor(Number($('c'+i).value)||0))),
+    chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Number($('f-mon').value)||0};
+  if(EDIT_ID){envoi.action='comptageModif';envoi.id=EDIT_ID}
+  $('f-valider').disabled=true;msgForm('Enregistrement en cours…');
+  let d=null;
+  for(let essai=0;essai<2&&!d;essai++){
+    try{const x=await fetch(API,{method:'POST',body:JSON.stringify(envoi)});d=await x.json()}catch(e){d=null}
+  }
+  if(!$('f-valider'))return;
+  $('f-valider').disabled=false;
+  if(d&&d.ok&&EDIT_ID){
+    GARDEES.add(dt+'|'+Number(t)+'|'+z);
+    EDIT_ID='';COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
+    $('f-valider').textContent='Valider';
+    rafraichirSession();msgForm('✔ Modification enregistrée (totaux, liste et tableau de gauche rechargés).');return;
+  }
+  if(d&&d.ok){
+    const cochee=await cocherPoche(dt,t,z);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
+    COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
+    majTotSession();chargerListeSession();   // totaux de la session relus dans recap_compta, liste mise à jour
+    msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
+  }
+  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):"Pas de réponse du Sheet : vérifie la feuille Comptage_poche avant de recommencer (un nouvel essai ne crée pas de doublon).",true);
+}
+function remplirDepuisLigne(tr){
+  $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
+  remplirEquipiers(tr.dataset.t);
+}
+// Équipiers par défaut : ceux de la tournée dans la feuille Parametres (restent modifiables à la main)
+const listeEquipiers=()=>'<option value="">—</option>'+[...PARAM_REF.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr')).map(p=>`<option value="${esc(p.code)}">${esc(p.code)}</option>`).join('');
+const EQ_IDS=['f-e1','f-e2','f-e3'];
+// Une personne choisie dans une case est grisée dans les deux autres
+function griserEquipiers(){
+  EQ_IDS.forEach(id=>{
+    const s=$(id);if(!s)return;
+    const autres=EQ_IDS.filter(x=>x!==id).map(x=>$(x)&&$(x).value).filter(Boolean);
+    [...s.options].forEach(o=>{o.disabled=o.value!==''&&autres.includes(o.value)});
+  });
+}
+function fixerEquipier(id,val){
+  const s=$(id);if(!s)return;
+  if(val&&![...s.options].some(o=>o.value===val))s.add(new Option(val,val));
+  s.value=val||'';
+  griserEquipiers();
+}
+// Remplit les listes déroulantes avec le personnel de la feuille Parametres (en gardant la valeur choisie)
+async function prepEquipiers(){
+  try{if(!PARAM_REF)await chargerParametres()}catch(e){return false}
+  EQ_IDS.forEach(id=>{const s=$(id);if(!s)return;const v=s.value;s.innerHTML=listeEquipiers();fixerEquipier(id,v)});
+  return true;
+}
+async function remplirEquipiers(t){
+  const num=Number(t);
+  if(!num){EQ_IDS.forEach(id=>fixerEquipier(id,''));return}
+  if(!await prepEquipiers())return;
+  const q=PARAM_REF.equipes.find(x=>x.t===num);
+  if(!$('f-e1')||$('f-t').value!==String(num))return;   // le formulaire a changé entre-temps
+  EQ_IDS.forEach(id=>fixerEquipier(id,''));
+  fixerEquipier('f-e1',q?q.e1:'');fixerEquipier('f-e2',q?q.e2:'');   // l'équipier 3 reste libre
+}
+function ouvrirSession(){
+  const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
+  $('cpttot').classList.add('ouvert');SESSION=true;SESSION_ID=nouvelIdSession();majTotSession();chargerListeSession();$('cpt-fermer').title='Session '+SESSION_ID;majBandeauCpt();
+  $('cf').addEventListener('input',calcForm);
+  prepEquipiers();
+  EQ_IDS.forEach(id=>$(id).addEventListener('change',griserEquipiers));
+  $('f-t').addEventListener('change',()=>remplirEquipiers($('f-t').value));   // saisie directe : équipiers 1 et 2 remplis selon la tournée
+  $('f-annuler').onclick=()=>EDIT_ID?sortirEdition():fermerSession();
+  $('f-valider').onclick=validerForm;
+  const sel=document.querySelector('table.cpt tr.sel');if(sel)remplirDepuisLigne(sel);
+  calcForm();
+}
+function fermerSession(){
+  const z=$('cptdroite');z.classList.remove('ouvert');
+  $('cpttot').classList.remove('ouvert');SESSION=false;SESSION_ID='';EDIT_ID='';LISTE=[];majBandeauCpt();chargerListeSession();
+  z.innerHTML='<button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button>';
+  $('ouvrir-session').onclick=ouvrirSession;
+}
+// ---- Session de comptage : la page Comptage reste en mémoire quand on navigue ailleurs dans l'admin
+let SESSION=false,PAGE='',SESSION_ID='';
+// Totaux de la session en cours : lus dans la feuille recap_compta (ligne portant l'identifiant de la session)
+async function majTotSession(){
+  if(!$('cpttotrow'))return;
+  const id=SESSION_ID;let v=new Array(15).fill(0);
+  if(id&&!TEST){
+    try{
+      const d=await fetch(API+'?recapcompta=1&t='+Date.now()).then(x=>x.json());
+      if(!d||!Array.isArray(d.rows))throw new Error('format');
+      const l=d.rows.find(x=>x.session===id);
+      if(l)v=l.vals;
+    }catch(e){etatCpt("Totaux de la session indisponibles : lecture de recap_compta impossible (Code.gs à mettre à jour et redéployer ?).",true);return}
+  }
+  if(id!==SESSION_ID||!$('cpttotrow'))return;   // la session a changé pendant la lecture
+  $('cpttotrow').innerHTML=[v[0],v[1],fmt(v[2]),...v.slice(3,11),fmt(v[11]),fmt(v[12]),v[13],fmt(v[14])].map(x=>'<td>'+x+'</td>').join('');
+}
+const nouvelIdSession=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'S'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
+function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-poches').style.display=s?'':'none';$('cpt-histo').style.display=s?'':'none';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
+function afficherCpt(){$('apanel').style.display='none';$('apanelcpt').style.display='';$('admin').scrollTop=0;$('admin').querySelector('.in').classList.add('large')}
+function panneauCpt(html){$('apanelcpt').innerHTML=html;afficherCpt()}
+$('cpt-fermer').onclick=()=>{
+  const cf=$('cf');
+  const saisi=cf&&[...cf.querySelectorAll('input:not([readonly]),select')].some(x=>x.id==='f-ty'?x.value!=='tournee':x.value!=='');
+  if(saisi&&!confirm('Fermer la session de comptage ? Ce qui est saisi dans le formulaire et pas encore validé sera perdu.'))return;
+  fermerSession();
+};
+// ---- Historique des comptages : tableau recap_compta de l'année en cours, avec impression / PDF de chaque ligne
+// La date de chaque ligne vient de l'identifiant de session (S20261110-143005 = 10/11/2026).
+const HISTO_LIB=['Nbr poche','Nbr calendrier','Total','0,50 €','1 €','2 €','5 €','10 €','20 €','50 €','100 €','Monnaie','Total espèces','Nbr chèques','Total chèques'];
+const HISTO_EUR=[2,11,12,14];   // colonnes en euros (les autres sont des quantités)
+const histoVal=(v,i)=>HISTO_EUR.includes(i)?fmt(Number(v)||0):String(v);
+function dateSession(id){const m=String(id).match(/^S(\d{4})(\d{2})(\d{2})-/);return m?{an:m[1],txt:m[3]+'/'+m[2]+'/'+m[1]}:null}
+let HISTO=[];
+function rendreHisto(){
+  const z=$('histo-corps');
+  if(!HISTO.length){z.innerHTML='<p class="note">Aucun comptage enregistré cette année.</p>';return}
+  z.innerHTML='<table class="cpt hist"><tr><th>Date</th><th>Session</th>'+HISTO_LIB.map(t=>'<th>'+t+'</th>').join('')+'<th></th></tr>'
+    +HISTO.map((r,i)=>'<tr><td>'+r.date.txt+'</td><td>'+esc(r.session)+'</td>'+r.vals.map((v,k)=>'<td>'+histoVal(v,k)+'</td>').join('')+'<td><button class="pdf" data-i="'+i+'" title="Imprimer ou enregistrer en PDF">📄 PDF</button></td></tr>').join('')+'</table>';
+  z.querySelectorAll('button.pdf').forEach(b=>b.onclick=()=>imprimerSession(HISTO[+b.dataset.i]));
+}
+async function ouvrirHisto(){
+  $('histo-titre').textContent="Historique des comptages — suivi de l'année en cours";$('histo-pdf').style.display='none';
+  $('histo').classList.add('open');
+  $('histo-corps').innerHTML='<p class="note">Chargement…</p>';
+  try{
+    const d=await fetch(API+'?recapcompta=1&t='+Date.now()).then(x=>x.json());
+    if(!d||!Array.isArray(d.rows))throw new Error('format');
+    const an=String(new Date().getFullYear());
+    HISTO=d.rows.map(r=>({session:r.session,vals:r.vals,date:dateSession(r.session)})).filter(r=>r.date&&r.date.an===an).sort((a,b)=>b.session.localeCompare(a.session));
+    rendreHisto();
+  }catch(e){$('histo-corps').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Historique indisponible : lecture de recap_compta impossible.</p>'}
+}
+// Impression d'une ligne : la boîte d'impression du navigateur propose « Enregistrer au format PDF »
+function imprimerSession(r){
+  const lignes=HISTO_LIB.map((t,k)=>'<tr><td>'+t+'</td><td class="v">'+histoVal(r.vals[k],k)+'</td></tr>').join('');
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Comptage '+esc(r.session)+'</title><style>body{font-family:system-ui,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 4px}p{margin:2px 0 14px;color:#444}table{border-collapse:collapse;width:100%;max-width:520px}td{border:1px solid #999;padding:6px 10px;font-size:14px}td.v{text-align:right;font-weight:700}</style></head><body><h1>Calendriers — comptage du '+r.date.txt+'</h1><p>Session '+esc(r.session)+' · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p><table>'+lignes+'</table></body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+// Impression du « Récapitulatif par équipe » (page A4 en paysage ; la boîte d'impression propose « Enregistrer au format PDF »)
+function imprimerEquipe(){
+  const t=$('equipe')&&$('equipe').querySelector('table.eqt');if(!t)return;
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Récapitulatif par équipe</title><style>@page{size:landscape;margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;font-size:11px;text-align:center}th{background:#e8eefb}td:nth-child(2),td:nth-child(3),td:nth-child(4){text-align:left}td:nth-child(n+5){text-align:right}</style></head><body><h1>Récapitulatif par équipe</h1><p>Imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+t.outerHTML+'</body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+// Impression du « Récapitulatif individuel » (la boîte d'impression propose « Enregistrer au format PDF »)
+function imprimerIndiv(){
+  const z=$('indiv')&&$('indiv').querySelector('.indiv2');if(!z)return;
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Récapitulatif individuel</title><style>@page{margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}.indiv2{display:flex;gap:24px;align-items:flex-start}table{border-collapse:collapse;flex:1;min-width:0}th,td{border:1px solid #999;padding:4px 8px;font-size:12px}th{background:#e8eefb;text-align:center}td:first-child{text-align:left}td:nth-child(n+2){text-align:right}</style></head><body><h1>Récapitulatif individuel</h1><p>Décompte des calendriers par personne · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+z.outerHTML+'</body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+// ---- Comptage des poches : toutes les poches déposées (comptées ou non), avec filtres et impression PDF
+// Données = feuille Recap_poche (lecture seule). Le filtre « personne » s'appuie sur les équipiers de chaque tournée dans Paramètres.
+let POCHES=[],POCHES_MAJ='';
+const FILTRES_PC={t:'',p:'',d:'',z:'',a:''};
+const dateFr=j=>String(j).split('-').reverse().join('/');
+const tournVal=g=>g.t===''?'none':String(g.t);
+function pochesFiltrees(){
+  const f=FILTRES_PC;
+  const tp=f.p&&PARAM_REF?PARAM_REF.equipes.filter(e=>e.e1===f.p||e.e2===f.p).map(e=>e.t):null;
+  return POCHES.filter(g=>
+    (!f.t||tournVal(g)===f.t)&&
+    (!f.d||g.jour===f.d)&&
+    (!f.z||(g.z||'none')===f.z)&&
+    (!f.a||(f.a==='oui')===!!g.amicale)&&
+    (!tp||tp.includes(Number(g.t))));
+}
+function rendreTablePoches(){
+  const L=pochesFiltrees();
+  let tn=0,ts=0,ok=0;
+  const lignes=L.map(g=>{
+    tn+=g.n;ts+=g.s;if(g.amicale)ok++;
+    return `<tr><td>${dateFr(g.jour)}</td><td>${g.t===''?'—':g.t}</td><td style="text-align:center">${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td style="text-align:center">${g.amicale?'✔':''}</td><td>${g.dc?dateFr(g.dc):''}</td></tr>`;
+  }).join('');
+  $('pc-sum').textContent=L.length+' poche'+(L.length>1?'s':'')+' · '+ok+' comptée'+(ok>1?'s':'')+' · '+(L.length-ok)+' non comptée'+(L.length-ok>1?'s':'');
+  $('pc-table').innerHTML=L.length
+    ?'<table class="cpt hist"><tr><th>Date</th><th>Tournée</th><th>Secteur</th><th>Nombre de calendriers</th><th>Somme</th><th>Moyenne</th><th>compt_amicale</th><th>Date de comptage</th></tr>'+lignes
+      +`<tr class="tot"><td colspan="3">Total</td><td style="text-align:right">${tn}</td><td style="text-align:right">${fmt(ts)}</td><td style="text-align:right">${fmt(tn?ts/tn:0)}</td><td></td><td></td></tr></table>`
+    :'<p class="note">Aucune poche pour ces filtres.</p>';
+}
+function rendrePoches(){
+  const z=$('histo-corps');
+  if(!POCHES.length){z.innerHTML="<p class=\"note\">Aucune poche dans la feuille Recap_poche : ferme cette fenêtre, appuie sur Actualiser dans le Comptage pour recalculer le tableau, puis rouvre-la.</p>";return}
+  const op=(v,l,sel)=>`<option value="${esc(v)}"${v===sel?' selected':''}>${esc(l)}</option>`;
+  const f=FILTRES_PC;
+  const tournees=[...new Set(POCHES.map(tournVal))].sort((a,b)=>(a==='none')-(b==='none')||Number(a)-Number(b));
+  const jours=[...new Set(POCHES.map(g=>g.jour))].sort().reverse();
+  const pers=PARAM_REF?[...new Set(PARAM_REF.equipes.flatMap(e=>[e.e1,e.e2]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')):[];
+  const sel=(id,k,lib,opts)=>`<label class="pcf">${lib}<select id="${id}" data-k="${k}">${opts}</select></label>`;
+  z.innerHTML='<div id="pc-filtres">'
+    +sel('pc-t','t','Tournée',op('','Toutes les tournées',f.t)+tournees.map(t=>op(t,t==='none'?'Hors tournée':'Tournée '+t,f.t)).join(''))
+    +(pers.length?sel('pc-p','p','Personne',op('','Toutes les personnes',f.p)+pers.map(p=>op(p,p,f.p)).join('')):'')
+    +sel('pc-d','d','Date',op('','Toutes les dates',f.d)+jours.map(j=>op(j,dateFr(j),f.d)).join(''))
+    +sel('pc-z','z','Secteur',op('','Tous les secteurs',f.z)+op('ville','Ville',f.z)+op('campagne','Campagne',f.z)+op('none','Hors secteur',f.z))
+    +sel('pc-a','a','compt_amicale',op('','Toutes',f.a)+op('oui','Cochées (comptées)',f.a)+op('non','Non cochées (non comptées)',f.a))
+    +'</div><p id="pc-sum" style="font-weight:700;margin:2px 0 8px"></p><div id="pc-table"></div>'
+    +'<p class="note" style="margin-top:10px">Données de la feuille Recap_poche'+(POCHES_MAJ?' (dernière actualisation : '+esc(POCHES_MAJ)+')':'')+' ; le bouton Actualiser du Comptage la recalcule. Le filtre « Personne » utilise les équipiers actuels de chaque tournée (feuille Parametres).</p>';
+  z.querySelectorAll('#pc-filtres select').forEach(s=>{s.onchange=()=>{FILTRES_PC[s.dataset.k]=s.value;rendreTablePoches()}});
+  rendreTablePoches();
+}
+async function ouvrirPoches(){
+  $('histo-titre').textContent='Comptage des poches';
+  $('histo-pdf').style.display='';$('histo-pdf').onclick=imprimerPoches;
+  $('histo').classList.add('open');
+  $('histo-corps').innerHTML='<p class="note">Chargement…</p>';
+  try{
+    const d=await lireRecap();
+    try{if(!PARAM_REF)await chargerParametres()}catch(e){}
+    if($('histo-titre').textContent!=='Comptage des poches')return;   // une autre fenêtre a été ouverte entre-temps
+    POCHES=d.rows.filter(g=>g.jour);POCHES_MAJ=d.maj||'';
+    Object.assign(FILTRES_PC,{t:'',p:'',d:'',z:'',a:''});
+    rendrePoches();
+  }catch(e){$('histo-corps').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Poches indisponibles : lecture de la feuille Recap_poche impossible.</p>'}
+}
+// Impression : la boîte d'impression propose « Enregistrer au format PDF » ; seules les lignes filtrées sont imprimées
+function imprimerPoches(){
+  const t=$('pc-table')&&$('pc-table').querySelector('table');if(!t)return;
+  const filtres=[['pc-t','Tournée'],['pc-p','Personne'],['pc-d','Date'],['pc-z','Secteur'],['pc-a','compt_amicale']]
+    .map(([id,l])=>{const s=$(id);return s&&s.value?l+' : '+s.selectedOptions[0].text:''}).filter(Boolean).join(' · ')||'Aucun filtre';
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Comptage des poches</title><style>@page{margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:5px 8px;font-size:12px;text-align:right}th{background:#e8eefb;text-align:center}td:nth-child(1),td:nth-child(2),td:nth-child(7),td:nth-child(8){text-align:center}tr.tot td{font-weight:700;background:#f1f4fa}</style></head><body><h1>Comptage des poches</h1><p>'+esc(filtres)+' · '+esc($('pc-sum').textContent)+' · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+t.outerHTML+'</body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
+$('cpt-poches').onclick=ouvrirPoches;
+$('cpt-histo').onclick=ouvrirHisto;
+$('histo-fermer').onclick=()=>$('histo').classList.remove('open');
+document.addEventListener('keydown',e=>{if(e.key==='Escape')$('histo').classList.remove('open')});
+// ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
+let RECAP=[];
+// Poches déjà comptées : masquées à l'ouverture du Comptage, sauf celles validées pendant la session (elles restent visibles, en vert)
+let AFF_COMPTEES=false,LAST_D=null;
+const GARDEES=new Set();const cleP=g=>g.jour+'|'+g.t+'|'+g.z;
+const lireRecap=()=>fetch(API+'?recap=1&t='+Date.now()).then(r=>r.json()).then(d=>{if(!d||!Array.isArray(d.rows))throw new Error('format');return d});
+function etatCpt(t,erreur){const m=$('cpt-etat');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#555';m.style.fontWeight=erreur?'700':'400'}}
+function tableComptage(d){
+  if(!$('cpt-table'))return;
+  LAST_D=d;RECAP=d.rows;let tn=0,ts=0,vis=0;
+  const ordre=trier(RECAP.map((g,i)=>({g,i})),'gauche',COLS_G);
+  const lignes=ordre.map(({g,i})=>{
+    if(g.amicale&&!AFF_COMPTEES&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
+    vis++;tn+=g.n;ts+=g.s;
+    return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}"><td>${g.jour.split('-').reverse().join('/')}</td><td>${g.t===''?'—':g.t}</td><td>${g.z==='ville'?'Ville':g.z==='campagne'?'Campagne':'Hors secteur'}</td><td>${g.n}</td><td>${fmt(g.s)}</td><td>${fmt(g.n?g.s/g.n:0)}</td><td><input type="checkbox"${g.amicale?' checked':''}></td></tr>`;
+  }).join('');
+  $('cpt-table').innerHTML=`<table class="cpt"><tr>${enteteTri('gauche',0,'Date')}${enteteTri('gauche',1,'Tournée')}${enteteTri('gauche',2,'Secteur')}${enteteTri('gauche',3,'Nombre de calendriers')}${enteteTri('gauche',4,'Somme')}${enteteTri('gauche',5,'Moyenne')}${enteteTri('gauche',6,'compt_amicale')}</tr>${lignes||'<tr><td colspan="7" style="text-align:center">'+(RECAP.length?'Toutes les poches sont comptées.':'Tableau vide : appuie sur Actualiser.')+'</td></tr>'}${vis?`<tr class="tot"><td colspan="3">Total</td><td>${tn}</td><td>${fmt(ts)}</td><td>${fmt(tn?ts/tn:0)}</td><td></td></tr>`:''}</table>`;
+  brancherTri($('cpt-table'),'gauche',()=>tableComptage(LAST_D));
+  $('cpt-actu').title=d.maj?'Dernière actualisation : '+d.maj:'Pas encore actualisé';
+  $('cpt-table').querySelectorAll('input[type=checkbox]').forEach(c=>{
+    c.onclick=e=>e.stopPropagation();
+    c.onchange=async()=>{
+      const g=RECAP[+c.closest('tr').dataset.i],val=c.checked;
+      let r=null;
+      try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'amicale',jour:g.jour,t:g.t,z:g.z,valeur:val,dateCompt:val?jourLocal(new Date().toISOString()):'',session:val?SESSION_ID:''})});r=await x.json()}catch(e){r=null}
+      if(r&&r.ok){
+        g.amicale=val;if(val)GARDEES.add(cleP(g));
+        g.dc=val?jourLocal(new Date().toISOString()):'';g.session=val?SESSION_ID:'';
+        c.closest('tr').classList.toggle('ok',val);
+        return;
+      }
+      etatCpt('Case non enregistrée ('+((r&&r.erreur)||'pas de réponse')+'). Tableau relu depuis le Sheet.',true);
+      try{tableComptage(await lireRecap())}catch(e){c.checked=!val}
+    };
+  });
+  $('cpt-table').querySelectorAll('tr.lg').forEach(tr=>tr.onclick=()=>{
+    document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));tr.classList.add('sel');
+    if($('cf'))remplirDepuisLigne(tr);
+  });
+}
+async function actualiserComptage(){
+  if(TEST){etatCpt("Mode test : rien n'est envoyé au Sheet.",true);return}
+  const b=$('cpt-actu');b.disabled=true;etatCpt('Calcul en cours…');
+  let d=null;
+  try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'recap'})});d=await x.json()}catch(e){d=null}
+  if(d&&d.ok===false){etatCpt('Refusé : '+(d.erreur||'erreur inconnue'),true);b.disabled=false;return}
+  try{
+    if(!(d&&d.ok))d=await lireRecap();
+    tableComptage(d);etatCpt('✔ Tableau actualisé.');
+  }catch(e){etatCpt("Impossible d'actualiser : pas de réponse du Sheet.",true)}
+  if($('cpt-actu'))$('cpt-actu').disabled=false;
+}
+$('ab-cpt').onclick=()=>{
+  if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
+  GARDEES.clear();AFF_COMPTEES=false;LAST_D=null;
+  panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Nbr<br>poche</th><th>Nbr<br>calendrier</th><th>Total</th><th>0,50 €</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total<br>espèces</th><th>Nbr<br>chèques</th><th>Total<br>chèques</th></tr><tr id="cpttotrow"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
+    <p id="cpt-etat" class="note" style="margin:8px 0">Chargement…</p>
+    <div class="cptwrap">
+    <div class="cptleft">
+      <label class="affc"><input type="checkbox" id="aff-comptees"> Afficher aussi les poches comptées</label>
+      <div id="cpt-table"></div>
+      <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille. « Hors secteur » : dons hors de tes secteurs tracés.</p>
+    </div>
+    <div class="cptcol">
+      <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
+      <div id="cptlist"></div>
+    </div>
+  </div>`);
+  $('ouvrir-session').onclick=ouvrirSession;
+  $('aff-comptees').onchange=()=>{AFF_COMPTEES=$('aff-comptees').checked;if(LAST_D)tableComptage(LAST_D)};
+  $('cpt-actu').onclick=actualiserComptage;
+  if(TEST)lireRecap().then(d=>{tableComptage(d);etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
+  else actualiserComptage();   // le tableau est recalculé dans le Sheet dès l'ouverture du Comptage
+};
+
+// ---- Paramètres : onglets Personnel et Équipes (lecture et enregistrement dans la feuille Parametres)
+let PARAM=null,PARAM_REF=null,ONGLET='pers';
+const clone=o=>JSON.parse(JSON.stringify(o));
+function lireParam(){
+  return fetch(API+'?parametres=1&t='+Date.now()).then(r=>r.json()).then(d=>{
+    if(!d||!Array.isArray(d.personnel)||!Array.isArray(d.equipes))throw new Error('format');
+    return d;
+  });
+}
+function chargerParametres(){return lireParam().then(d=>{PARAM_REF=d;PARAM=clone(d)})}
+const modifie=()=>JSON.stringify(PARAM)!==JSON.stringify(PARAM_REF);
+const rendreOnglet=()=>ONGLET==='pers'?rendrePersonnel():ONGLET==='div'?rendreDivers():rendreEquipes();
+function msgEtat(t,erreur){const m=$('p-etat');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
+function majBarre(){
+  const b=$('p-bar');if(!b)return;
+  const m=modifie(),ok=m&&!conflits().length;
+  b.innerHTML=`<div class="boutons"><button type="button" class="rouge" id="p-annuler"${m?'':' disabled'}>Annuler les modifications</button><button type="button" class="vert" id="p-enreg"${ok?'':' disabled'}>Enregistrer</button></div><p id="p-etat" class="note">${m?'Modifications non enregistrées.':''}</p>`;
+  $('p-annuler').onclick=()=>{PARAM=clone(PARAM_REF);rendreOnglet()};
+  $('p-enreg').onclick=enregistrerParam;
+}
+async function enregistrerParam(){
+  if(TEST){msgEtat("Mode test : rien n'est envoyé au Sheet.",true);return}
+  const envoi={personnel:PARAM.personnel.map(p=>({nom:p.nom.trim(),prenom:p.prenom.trim(),code:p.code})),equipes:PARAM.equipes.map(e=>({t:e.t,nom:e.nom.trim(),e1:e.e1,e2:e.e2})),annee:PARAM.annee||'',minAmicale:PARAM.minAmicale===undefined?'':PARAM.minAmicale};
+  $('p-enreg').disabled=true;$('p-annuler').disabled=true;msgEtat('Enregistrement en cours…');
+  let d=null;
+  try{const r=await fetch(API,{method:'POST',body:JSON.stringify({action:'parametres',...envoi})});d=await r.json()}catch(e){d=null}
+  if(d&&!d.ok){
+    majBarre();msgEtat('Refusé : '+(d.erreur||'erreur inconnue'),true);return;
+  }
+  let neuf;
+  try{neuf=await lireParam()}catch(e){majBarre();msgEtat("Envoyé, mais impossible de relire la feuille pour vérifier. Recharge la page.",true);return}
+  const pareil=JSON.stringify(neuf.equipes)===JSON.stringify(envoi.equipes)&&JSON.stringify(neuf.personnel.map(p=>p.code))===JSON.stringify(envoi.personnel.map(p=>p.code))&&(neuf.annee||'')===(envoi.annee||'');
+  if((d&&d.ok)||pareil){
+    PARAM_REF=neuf;PARAM=clone(neuf);
+    rendreOnglet();
+    if(envoi.minAmicale!==''&&neuf.minAmicale===undefined){msgEtat("Enregistré, mais le minimum amicale n'a pas été pris en compte : Code.gs est à mettre à jour et à redéployer.",true);return}
+    msgEtat('✔ Enregistré dans le Google Sheet.');return;
+  }
+  majBarre();msgEtat("L'enregistrement n'a pas abouti. Rien n'a été modifié.",true);
+}
+const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+const tourneesDe=code=>PARAM.equipes.filter(e=>e.e1===code||e.e2===code).map(e=>e.t);
+// Code d'une nouvelle personne : Nom + initiale du prénom ; 2 lettres (puis 3…) si déjà pris ; un numéro si nom ET prénom identiques
+function nouveauCode(nom,prenom){
+  const pris=new Set(PARAM.personnel.map(p=>norm(p.code)));
+  const N=nom.trim(),P=prenom.trim();
+  for(let k=1;k<=P.length;k++){
+    const c=N+' '+P.charAt(0).toUpperCase()+P.slice(1,k).toLowerCase();
+    if(!pris.has(norm(c)))return c;
+  }
+  let n=2;while(pris.has(norm(N+' '+P+' '+n)))n++;
+  return N+' '+P+' '+n;
+}
+// Anomalies dans les affectations : même personne sur plusieurs tournées, ou nom absent de la liste du personnel
+function conflits(){
+  const msg=[],vus={},connus=new Set(PARAM.personnel.map(p=>p.code));
+  PARAM.equipes.forEach(e=>[e.e1,e.e2].forEach(c=>{if(c)(vus[c]=vus[c]||[]).push(e.t)}));
+  Object.keys(vus).forEach(c=>{
+    const t=[...new Set(vus[c])];
+    if(!connus.has(c))msg.push(`« ${c} » (tournée ${t.join(', ')}) n'existe pas dans la liste du personnel.`);
+    if(vus[c].length>1)msg.push(t.length>1?`${c} est affecté(e) à plusieurs tournées : ${t.join(' et ')}.`:`${c} est équipier 1 et équipier 2 de la tournée ${t[0]}.`);
+  });
+  return msg;
+}
+function msgParam(t,erreur){const m=$('p-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
+// Liste déroulante : une personne déjà affectée à une AUTRE tournée est grisée ; l'autre équipier de la tournée aussi
+function optionsPers(sel,autre,t){
+  const liste=[...PARAM.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr'));
+  const connus=new Set(liste.map(p=>p.code));
+  return '<option value="">— aucun —</option>'
+    +(sel&&!connus.has(sel)?`<option value="${esc(sel)}" selected>⚠ ${esc(sel)} (absent de la liste)</option>`:'')
+    +liste.map(p=>{
+      const ailleurs=tourneesDe(p.code).filter(x=>x!==t);
+      const off=(autre&&p.code===autre)||(ailleurs.length&&p.code!==sel);
+      return `<option value="${esc(p.code)}"${p.code===sel?' selected':''}${off?' disabled':''}>${esc(p.code)}${ailleurs.length?` (tournée ${ailleurs.join(', ')})`:''}</option>`;
+    }).join('');
+}
+function rendrePersonnel(){majBarre();
+  const liste=[...PARAM.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr'));
+  const sans=liste.filter(p=>!tourneesDe(p.code).length).length;
+  $('po').innerHTML=`<div class="barre-ajout">
+      <input id="p-nom" placeholder="Nom (ex. Durand)"><input id="p-prenom" placeholder="Prénom"><button class="bt" id="p-ajouter">➕ Ajouter</button>
+    </div>
+    <p id="p-msg" class="note"></p>
+    <table class="cpt"><tr><th>Nom</th><th>Prénom</th><th>Tournée</th><th></th></tr>
+    ${liste.map(p=>{const t=tourneesDe(p.code);return `<tr><td style="text-align:left">${esc(p.nom)}</td><td style="text-align:left">${esc(p.prenom)}</td><td>${t.length?t.join(', '):'—'}</td><td><button class="sup" data-code="${esc(p.code)}">🗑 Supprimer</button></td></tr>`}).join('')}
+    </table>
+    <p class="note">${liste.length} personnes · ${sans} sans équipe (c'est normal). Le code (nom + initiale du prénom) est créé automatiquement et ne change plus ensuite.</p>`;
+  $('p-ajouter').onclick=()=>{
+    const nom=$('p-nom').value.trim(),prenom=$('p-prenom').value.trim();
+    if(!nom||!prenom){msgParam('Renseigne le nom et le prénom.',true);return}
+    const code=nouveauCode(nom,prenom);
+    PARAM.personnel.push({nom,prenom,code});rendrePersonnel();msgParam('✔ '+code+' ajouté(e) : pense à Enregistrer.');
+  };
+  $('po').querySelectorAll('button.sup').forEach(b=>b.onclick=()=>{
+    const code=b.dataset.code,t=tourneesDe(code);
+    const q=t.length?`${code} est équipier de la tournée ${t.join(', ')}. Sa place sera vidée. Supprimer ?`:`Supprimer ${code} ?`;
+    if(!confirm(q))return;
+    PARAM.personnel=PARAM.personnel.filter(p=>p.code!==code);
+    PARAM.equipes.forEach(e=>{if(e.e1===code)e.e1='';if(e.e2===code)e.e2=''});
+    rendrePersonnel();msgParam(code+' supprimé(e) : pense à Enregistrer.');
+  });
+}
+function rendreDivers(){majBarre();
+  const an=PARAM.annees||[],cur=PARAM.annee||'';
+  $('po').innerHTML=`<table class="cpt"><tr><th>Réglage</th><th>Valeur</th></tr>
+    <tr><td style="text-align:left">Année à comparer<br><span class="note">Dans le récapitulatif, l'écart = réalisés cette année − calendriers de l'année choisie (feuille Historique).</span></td>
+    <td><select id="d-annee">${an.length?an.map(a=>`<option value="${esc(a)}"${a===cur?' selected':''}>${esc(a)}</option>`).join(''):'<option value="">Aucune année trouvée</option>'}</select></td></tr>
+    <tr><td style="text-align:left">Minimum de calendriers à réaliser pour avoir droit à l'amicale<br><span class="note">Valeur enregistrée dans la feuille Parametres, cellule M1.</span></td>
+    <td><input id="d-min" type="number" min="0" step="1" inputmode="numeric" value="${esc(PARAM.minAmicale===undefined?'':PARAM.minAmicale)}" style="width:100%;box-sizing:border-box;padding:6px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px"></td></tr></table>
+    <p class="note">Les années proposées sont celles des colonnes de la feuille Historique (2025_C, 2025_V, 2026_C…).</p>`;
+  $('d-annee').onchange=ev=>{PARAM.annee=ev.target.value;majBarre()};
+  $('d-min').oninput=ev=>{const v=ev.target.value.trim();PARAM.minAmicale=v===''?'':Math.max(0,Math.floor(Number(v)||0));majBarre()};
+}
+function rendreEquipes(){majBarre();
+  const cf=conflits();
+  $('po').innerHTML=(cf.length?`<div style="background:#ffeaea;border:1px solid #d9a0a0;border-radius:6px;padding:8px 12px;margin:8px 0;color:#b71c1c;font-size:14px"><b>⚠ À corriger avant de pouvoir enregistrer :</b><br>${cf.map(esc).join('<br>')}</div>`:'')
+    +`<table class="cpt"><tr><th>Tournée</th><th>Nom de la tournée</th><th>Équipier 1</th><th>Équipier 2</th></tr>
+    ${PARAM.equipes.map((e,i)=>`<tr data-i="${i}"><td>${e.t}</td><td><input class="e-nom" value="${esc(e.nom)}"></td><td><select class="e-s1">${optionsPers(e.e1,e.e2,e.t)}</select></td><td><select class="e-s2">${optionsPers(e.e2,e.e1,e.t)}</select></td></tr>`).join('')}
+    </table>
+    <p class="note">Une personne ne peut être affectée qu'à une seule tournée, et pas deux fois dans la même : les noms déjà pris sont grisés avec leur numéro de tournée. ⚠ signale un nom qui n'existe pas dans la liste du personnel.</p>`;
+  $('po').querySelectorAll('tr[data-i]').forEach(tr=>{
+    const e=PARAM.equipes[+tr.dataset.i];
+    tr.querySelector('.e-nom').oninput=ev=>{e.nom=ev.target.value;majBarre()};
+    tr.querySelector('.e-s1').onchange=ev=>{e.e1=ev.target.value;rendreEquipes()};
+    tr.querySelector('.e-s2').onchange=ev=>{e.e2=ev.target.value;rendreEquipes()};
+  });
+}
+function ouvrirParametres(onglet){
+  if(!PARAM){
+    panneau('<p class="note">Chargement des paramètres…</p>');
+    chargerParametres().then(()=>ouvrirParametres(onglet)).catch(()=>{
+      panneau('<p class="note" style="color:#c62828;font-weight:700">Impossible de lire la feuille Parametres.</p><button class="bt" id="p-retry">Réessayer</button>');
+      $('p-retry').onclick=()=>ouvrirParametres(onglet);
+    });
+    return;
+  }
+  ONGLET=onglet||ONGLET;
+  const adr=Object.values(pts).filter(m=>!m.gps).length;
+  panneau(`<div class="pbox"><h3 style="margin-top:0">Paramètres</h3>
+    <div class="onglets"><button data-o="pers" class="${ONGLET==='pers'?'on':''}">Personnel</button><button data-o="eq" class="${ONGLET==='eq'?'on':''}">Équipes</button><button data-o="div" class="${ONGLET==='div'?'on':''}">Divers</button></div>
+    <p class="apercu">Données réelles de la feuille Parametres. Les modifications ne sont envoyées au Google Sheet qu'en appuyant sur Enregistrer.</p>
+    <div id="po"></div><div id="p-bar"></div>
+    <p class="note" style="margin-top:22px">Informations : ${adr} adresses chargées, ${items.length} logements saisis, ${Object.keys(pts).length-adr} point(s) hors adresse.</p></div>`,true);
+  $('apanel').querySelectorAll('.onglets button').forEach(b=>b.onclick=()=>ouvrirParametres(b.dataset.o));
+  rendreOnglet();
+}
+$('ab-param').onclick=()=>ouvrirParametres();
+
+
+
+const clicRecap=e=>{
+  const tr=e.target.closest&&e.target.closest('tr[data-j]');if(!tr)return;
+  const det=tr.nextElementSibling,k=tr.dataset.j,ouvre=det.style.display==='none';
+  det.style.display=ouvre?'':'none';ouvre?ouverts.add(k):ouverts.delete(k);
+  tr.querySelector('.fl').textContent=ouvre?'▾':'▸';
+};
+$('recapbtn').onclick=recap;
+
+// Point manuel (placé sur la carte sans être sur place)
+let placement=false;
+function stopPlacement(){placement=false;$('manuel').classList.remove('on');$('aide').style.display='none';map.getContainer().style.cursor=''}
+$('manuel').onclick=()=>{
+  if(placement){stopPlacement();return}
+  placement=true;$('manuel').classList.add('on');$('aide').style.display='block';
+  map.getContainer().style.cursor='crosshair';map.closePopup();
+};
+map.on('click',e=>{
+  if(!placement)return;
+  stopPlacement();
+  const a={id:'',adresse:'',nom:'',lat:e.latlng.lat,lng:e.latlng.lng,statut:'',manuel:true};
+  L.popup().setLatLng(e.latlng).setContent(popupAdr(a,true)).openOn(map);
+});
+
+// Affichage selon l'échelle : points et carrés visibles à partir du zoom ZMIN
+const ZMIN=15;
+const zoomOk=()=>map.getZoom()>=ZMIN;
+function majAdr(){(map.hasLayer(gAdrCtl)&&zoomOk())?map.addLayer(gAdr):map.removeLayer(gAdr)}
+function majZoom(){$('zoomhint').style.display=zoomOk()?'none':'block';majAdr();applyFilters()}
+map.on('zoomend',majZoom);
+gAdrCtl.on('add remove',majAdr);
+
+// Filtres d'affichage
+const filtre={don:true,absent:true,inoccupe:true};
+function applyFilters(){
+  touched.forEach(mk=>{
+    const show=Object.values(mk.L).some(r=>filtre[r.type]!==false);
+    if(mk.gps){(show&&zoomOk())?mk.addTo(map):mk.remove()}
+    else{show?gAdr.addLayer(mk):gAdr.removeLayer(mk)}
+  });
+
+}
+document.querySelectorAll('#filtres button').forEach(b=>{
+  b.classList.add('on');
+  b.onclick=()=>{const t=b.dataset.t;filtre[t]=!filtre[t];b.classList.toggle('on',filtre[t]);applyFilters()};
+});
+
+// Points d'adresse (cliquables)
+function popupAdr(a,gps){
+  const d=document.createElement('div');
+  d.innerHTML=`<b>${esc(a.adresse)||(a.manuel?'Point placé à la main':'Position GPS')}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}${a.statut?esc(a.statut)+'<br>':''}`;
+  [['💶 Don','don'],['🚪 Absent','absent'],['🏚️ Inoccupé','inoccupe']].filter(x=>!gps||x[1]!=='inoccupe').forEach(([t,ty])=>{
+    const b=document.createElement('button');
+    b.textContent=t;b.style.cssText='margin:6px 4px 0 0;padding:8px 10px;font-size:15px';
+    b.onclick=()=>{map.closePopup();ouvrir(ty,a)};
+    d.appendChild(b);
+  });
+  return d;
+}
+const LAB={don:'💶 Don',absent:'🚪 Absent',inoccupe:'🏚️ Inoccupé'},NOMS={don:'Don',absent:'Absent',inoccupe:'Inoccupé'};
+const statutTxt=r=>(r.type==='don'?r.montant+' € ('+r.mode+')':NOMS[r.type])+(r.note?' — '+r.note:'');
+function popupMk(mk,extra){
+  const a=mk.a;
+  const d=document.createElement('div');
+  d.innerHTML=`<b>${esc(a.adresse)||'Position GPS'}</b><br>${ligneEq(a)?ligneEq(a)+'<br>':''}`;
+  const nums=Object.keys(mk.L).map(Number);
+  if(extra&&!nums.includes(extra))nums.push(extra);
+  if(!nums.length)nums.push(1);
+  nums.sort((x,y)=>x-y);
+  nums.forEach(n=>{
+    const rec=mk.L[n],multi=nums.length>1;
+    const bloc=document.createElement('div');
+    bloc.style.cssText='margin-top:8px;padding-top:6px;'+(multi?'border-top:1px solid #ddd':'');
+    bloc.innerHTML=(multi?`<b>Logement ${n}</b>`:'')+(rec?`${multi?' — ':''}${esc(rec.nom)||'(sans nom)'}<br><small>${esc(statutTxt(rec))}</small><br>`:(multi?'<br>':''));
+    // Un don ne peut plus être modifié après le jour où il a été enregistré
+    const jr=rec&&rec.type==='don'?jourLocal(rec.date):'';
+    if(jr&&jr!==jourLocal(new Date().toISOString())){
+      bloc.insertAdjacentHTML('beforeend',`<span style="color:#555">🔒 Don du ${esc(jr.split('-').reverse().join('/'))} — non modifiable</span>`);
+      d.appendChild(bloc);return;
+    }
+    ['don','absent','inoccupe'].filter(t=>!mk.gps||t!=='inoccupe').forEach(t=>{
+      const act=rec&&rec.type===t,b=document.createElement('button');
+      b.textContent=LAB[t];
+      b.style.cssText=`margin:4px 4px 0 0;padding:8px 10px;font-size:15px;border:2px solid ${COLS[t]};border-radius:8px;background:${act?COLS[t]:'#fff'};color:${act?'#fff':'#333'}`;
+      b.onclick=()=>{
+        if(act&&t==='inoccupe')return;
+        if(rec&&!act&&!confirm('Modifier ce logement ?\n'+(rec.nom||'(sans nom)')+' : '+NOMS[rec.type]+' → '+NOMS[t]))return;
+        map.closePopup();ouvrir(t,a,n,rec);
+      };
+      bloc.appendChild(b);
+    });
+    d.appendChild(bloc);
+  });
+  if(Object.keys(mk.L).length&&!extra){
+    const b=document.createElement('button');
+    b.textContent='➕ Ajouter un logement';
+    b.style.cssText='margin-top:10px;padding:8px 10px;font-size:15px;width:100%;border:2px dashed #1a73e8;border-radius:8px;background:#fff;color:#1a73e8';
+    b.onclick=()=>showAdr(mk,Math.max(...Object.keys(mk.L).map(Number))+1);
+    d.appendChild(b);
+  }
+  return d;
+}
+function showAdr(mk,extra){if(placement)stopPlacement();L.popup({maxHeight:320}).setLatLng(mk.getLatLng()).setContent(popupMk(mk,extra)).openOn(map)}
+gAdr.on('click',e=>showAdr(e.layer));
+function chargerAdresses(){
+  return fetch('adresses.geojson?v='+Date.now()).then(r=>r.json()).then(d=>{
+    d.features.forEach(f=>{
+      const [lng,lat]=f.geometry.coordinates;
+      const a={id:f.properties.id,adresse:f.properties.adr,nom:'',lat,lng,statut:''};
+      const mk=L.circleMarker([lat,lng],{radius:5,color:'#fff',weight:1,fillColor:'#777',fillOpacity:.9}).addTo(gAdr);
+      mk.a=a;mk.L={};pts[a.id]=mk;
+    });
+  }).catch(()=>{});
+}
+// Chargement initial puis actualisation automatique (1 min) des saisies des autres
+let vus=0,encours=false;
+const traiter=rows=>rows.forEach(r=>{try{addMarker(r)}catch(e){}});
+Promise.all([chargerAdresses(),fetch(API).then(r=>r.json()).catch(()=>[])]).then(([_,rows])=>{rows=Array.isArray(rows)?rows:[];vus=rows.reduce((m,r)=>Math.max(m,Number(r.maj)||0),0);traiter(rows);majEtat()});
+function actualiser(){
+  if(encours||document.hidden||!navigator.onLine)return;
+  encours=true;flush();
+  fetch(API+'?depuis='+vus).then(r=>r.json()).then(d=>{
+    if(!d||typeof d.n!=='number')return;
+    traiter(d.rows||[]);vus=d.n;majEtat();
+  }).catch(()=>{}).finally(()=>{encours=false});
+}
+setInterval(actualiser,60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualiser()});
+majZoom();
+flush();
+window.addEventListener('online',flush);
+</script>
+</body>
+</html>
