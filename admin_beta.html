@@ -863,7 +863,14 @@ async function validerForm(){
 }
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
-  remplirEquipiers(tr.dataset.t);
+  const g=RECAP[+tr.dataset.i];
+  if(g&&g.equipiers&&g.equipiers.length)appliquerEquipiers(g.equipiers);   // équipiers de la session de calendrier
+  else remplirEquipiers(tr.dataset.t);   // pas de session connue : équipiers par défaut de Parametres
+}
+async function appliquerEquipiers(liste){
+  if(!await prepEquipiers())return;
+  EQ_IDS.forEach(id=>fixerEquipier(id,''));
+  liste.slice(0,3).forEach((n,i)=>fixerEquipier(EQ_IDS[i],n));
 }
 // Équipiers par défaut : ceux de la tournée dans la feuille Parametres (restent modifiables à la main)
 const listeEquipiers=()=>'<option value="">—</option>'+[...PARAM_REF.personnel].sort((a,b)=>a.code.localeCompare(b.code,'fr')).map(p=>`<option value="${esc(p.code)}">${esc(p.code)}</option>`).join('');
