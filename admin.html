@@ -184,6 +184,10 @@ table.cpt.eqt td:first-child{text-align:center}
 #sm h4{margin:0 0 10px;font-size:16px}
 #sm label{display:block;font-size:13px;color:#33475b}
 #sm input,#sm select{display:block;width:100%;box-sizing:border-box;margin-top:1px;padding:5px 8px;font-size:15px;border:1px solid #9fb7c9;border-radius:6px;background:#fff}
+.sso button{font-size:14px;font-weight:700;padding:7px 12px;border:2px solid #1a73e8;border-radius:8px;background:#fff;color:#1a73e8;cursor:pointer}
+.sso button.on{background:#1a73e8;color:#fff}
+table.cpt.rpa td{text-align:left}
+table.cpt.rpa td.n{text-align:right}
 </style>
 </head>
 <body>
@@ -237,7 +241,6 @@ if(!window.L){document.body.insertAdjacentHTML('afterbegin','<div style="padding
 const TEST=new URLSearchParams(location.search).has('test');
 if(TEST)document.addEventListener('DOMContentLoaded',()=>{const b=document.createElement('div');b.textContent='MODE TEST — rien n\'est envoyé au Sheet';b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#c00c;color:#fff;text-align:center;font-size:11px;padding:1px;pointer-events:none';document.body.appendChild(b)});
 const API='https://script.google.com/macros/s/AKfycbz6sD97H6fMLxV-n2gB4K6FJxnXZ2hwUHgYRKAdmNq24JG4keXBx4CUSFXJyjSODCkPlw/exec';
-
 L.Renderer.prototype.options.tolerance=6; // zone de toucher élargie sur téléphone
 const map = L.map('map',{preferCanvas:true}).setView([44.19, 2.34], 15);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
@@ -449,10 +452,11 @@ function afficherOngletRecap(o){
   document.querySelectorAll('#onglets-recap button').forEach(b=>b.classList.toggle('on',b.dataset.o===o));
   const z=$('recap-contenu');
   if(o==='app'){
-    z.innerHTML='<div class="rbar"><select id="rsel"><option value="">Toutes les tournées</option>'+[...Array(13)].map((_,i)=>`<option value="${i+1}">Équipe ${i+1}</option>`).join('')+'</select></div><div id="rtab"></div>';
+    z.innerHTML='<div class="rbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="sso"><button data-s="tournee">Par tournée</button> <button data-s="indiv">👥 Récap individuel</button></span><select id="rsel"><option value="">Toutes les tournées</option>'+[...Array(13)].map((_,i)=>`<option value="${i+1}">Équipe ${i+1}</option>`).join('')+'</select></div><div id="rtab"></div><div id="rpers" style="display:none"></div>';
     $('rsel').onchange=()=>{ouverts.clear();rendreRecap()};
     $('rtab').onclick=clicRecap;
-    rendreRecap();
+    z.querySelectorAll('.sso button').forEach(b=>b.onclick=()=>sousOngletApp(b.dataset.s));
+    sousOngletApp('tournee');
   }else if(o==='indiv'){
     z.innerHTML='<div id="indiv"><p class="note">Chargement…</p></div>';
     rendreIndiv();
@@ -510,6 +514,44 @@ async function rendreIndiv(){
     +'<div style="display:flex;gap:12px;align-items:flex-start"><div class="indiv2" style="flex:1;min-width:0">'+bloc(gauche)+bloc(droite)+'</div><button class="pdf" id="ind-pdf" title="Imprimer ou enregistrer en PDF">📄 PDF</button></div>'
     +(branche?'':'<p class="note">Mise en page seule pour l\'instant : les chiffres « Fait » et « Reste à faire » apparaîtront quand la lecture de la feuille Recap_pers sera branchée.</p>');
   $('ind-pdf').onclick=imprimerIndiv;
+}
+// Sous-onglets de « Récapitulatif de l'application » : Par tournée (existant) / Récap individuel (feuille Recap_pers_app)
+let SOUS_APP='tournee';
+function sousOngletApp(s){
+  SOUS_APP=s;
+  document.querySelectorAll('.sso button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+  $('rsel').style.display=s==='tournee'?'':'none';
+  $('rtab').style.display=s==='tournee'?'':'none';
+  $('rpers').style.display=s==='indiv'?'':'none';
+  if(s==='tournee')rendreRecap();else rendreRecapPersApp();
+}
+async function rendreRecapPersApp(){
+  const z=$('rpers');if(!z)return;
+  z.innerHTML='<p class="note">Chargement…</p>';
+  let d=null;
+  try{d=await fetch(API+'?recappersapp=1&t='+Date.now()).then(r=>r.json())}catch(e){d=null}
+  if(!$('rpers')||SOUS_APP!=='indiv')return;
+  if(!d||!Array.isArray(d.rows)){z.innerHTML='<p class="note" style="color:#c62828;font-weight:700">Récap individuel indisponible : lecture de la feuille Recap_pers_app impossible (Code.gs à mettre à jour et redéployer ?).</p>';return}
+  if(!d.rows.length){z.innerHTML='<p class="note">La feuille Recap_pers_app est vide ou introuvable.</p>';return}
+  const num=c=>/^[-−+]?[\d\s.,]+\s*(€|%)?$/.test(String(c).trim());
+  const tete=d.rows[0],corps=d.rows.slice(1);
+  z.innerHTML=(d.titre?'<h4 style="margin:4px 0 10px">'+esc(d.titre)+'</h4>':'')
+    +'<div style="display:flex;gap:12px;align-items:flex-start"><div style="overflow-x:auto;flex:1;min-width:0"><table class="cpt rpa"><tr>'+tete.map(c=>'<th>'+esc(c)+'</th>').join('')+'</tr>'
+    +corps.map(r=>'<tr>'+r.map(c=>'<td'+(num(c)?' class="n"':'')+'>'+esc(c)+'</td>').join('')+'</tr>').join('')
+    +'</table></div><button class="pdf" id="rpa-pdf" title="Imprimer ou enregistrer en PDF">📄 PDF</button></div>';
+  $('rpa-pdf').onclick=imprimerRecapPersApp;
+}
+function imprimerRecapPersApp(){
+  const t=$('rpers')&&$('rpers').querySelector('table');if(!t)return;
+  const titre=$('rpers').querySelector('h4');
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Récap individuel</title><style>@page{margin:12mm}body{font-family:system-ui,sans-serif;color:#111}h1{font-size:18px;margin:0 0 4px}p{margin:2px 0 12px;color:#444;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 8px;font-size:12px;text-align:left}th{background:#e8eefb;text-align:center}td.n{text-align:right}</style></head><body><h1>'+(titre?esc(titre.textContent):'Récap individuel')+'</h1><p>Récapitulatif de l\'application · imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p>'+t.outerHTML+'</body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
 }
 function recap(){
   ouverts.clear();
