@@ -67,6 +67,7 @@
 #aide{display:none;position:absolute;top:100px;left:50%;transform:translateX(-50%);z-index:1000;background:#1a73e8;color:#fff;padding:8px 14px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:0 1px 4px #0006;white-space:nowrap}
 #zoomhint{display:none;position:absolute;bottom:160px;left:50%;transform:translateX(-50%);z-index:1000;background:#333c;color:#fff;padding:6px 12px;border-radius:10px;font-size:13px;white-space:nowrap}
 .eq{background:#fffb;border:0;box-shadow:none;font-weight:700;font-size:12px;padding:1px 5px}
+#attente{display:none;position:absolute;bottom:112px;left:8px;z-index:1000;background:#d32f2f;color:#fff;border:0;border-radius:10px;padding:6px 10px;font-weight:700;font-size:14px;box-shadow:0 1px 4px #0006}
 </style>
 </head>
 <body>
@@ -75,6 +76,7 @@
 <button id="manuel">➕ Point</button><div id="zoomhint">Zoomez pour afficher les points</div>
 <div id="aide">Touchez la carte pour placer le point</div>
 <button id="recapbtn">📊 Récap</button>
+<button id="attente"></button>
 <div id="sesbar"><div id="sestxt"></div><button id="sesclose">Fermer</button></div>
 <div id="recap" style="display:none;position:absolute;inset:0;z-index:3000;background:#fff;overflow:auto">
   <div style="position:sticky;top:0;background:#222;color:#fff;padding:12px;display:flex;justify-content:space-between;align-items:center"><select id="rsel" style="font-size:16px;padding:6px 8px;max-width:65%"><option value="">Toutes les tournées</option><option value="1">Équipe 1</option><option value="2">Équipe 2</option><option value="3">Équipe 3</option><option value="4">Équipe 4</option><option value="5">Équipe 5</option><option value="6">Équipe 6</option><option value="7">Équipe 7</option><option value="8">Équipe 8</option><option value="9">Équipe 9</option><option value="10">Équipe 10</option><option value="11">Équipe 11</option><option value="12">Équipe 12</option><option value="13">Équipe 13</option></select><button id="rclose" style="font-size:16px;padding:6px 12px">Fermer</button></div>
@@ -211,20 +213,30 @@ function addMarker(r){
 
 // File d'attente (réseau faible sur le terrain)
 const getQ=()=>JSON.parse(localStorage.getItem('q')||'[]');
-const setQ=q=>localStorage.setItem('q',JSON.stringify(q));
-let envoi=false;
-async function flush(){
-  if(TEST||envoi)return;envoi=true;let ok=true;
-  try{
-    while(getQ().length){
-      const r=getQ()[0];
-      await fetch(API,{method:'POST',mode:'no-cors',body:JSON.stringify(r)});
-      setQ(getQ().slice(1));
-    }
-  }catch(e){ok=false}
-  envoi=false;
-  if(ok&&getQ().length)flush();
+const setQ=q=>{localStorage.setItem('q',JSON.stringify(q));majAttente()};
+// Envoi des saisies en attente : un envoi qui ne répond pas au bout de 20 s est abandonné puis retenté (toutes les 15 s tant qu'il en reste).
+// Un envoi refait deux fois ne crée pas de doublon dans le Sheet. flush() renvoie une promesse qu'on peut attendre.
+let enCours=null;
+function flush(){
+  if(TEST)return Promise.resolve();
+  if(enCours)return enCours;
+  const p=(async()=>{
+    let ok=true;
+    try{
+      while(getQ().length){
+        const r=getQ()[0],c=new AbortController(),t=setTimeout(()=>c.abort(),20000);
+        try{await fetch(API,{method:'POST',mode:'no-cors',body:JSON.stringify(r),signal:c.signal})}finally{clearTimeout(t)}
+        setQ(getQ().slice(1));
+      }
+    }catch(e){ok=false}
+    if(!ok&&getQ().length)setTimeout(flush,15000);
+  })();
+  enCours=p;
+  p.finally(()=>{if(enCours===p)enCours=null});
+  return p;
 }
+// Pastille rouge : nombre de saisies pas encore parties vers le Sheet (toucher pour réessayer)
+function majAttente(){const n=getQ().length,b=document.getElementById('attente');if(!b)return;b.style.display=n?'block':'none';b.textContent='⏳ '+n+' en attente d\'envoi — toucher pour envoyer'}
 function save(r){r.date=new Date().toISOString();Object.assign(r,eqPos(r.lat,r.lng));if(SES&&SES.id)r.cal=SES.id;   // id de la session de calendrier
   if(TEST){addMarker(r);return}
  setQ([...getQ(),r]);addMarker(r);flush()}
@@ -352,11 +364,17 @@ $('sesclose').onclick=()=>{
   $('bilan').style.display='block';$('bilan').scrollTop=0;
 };
 $('bi-retour').onclick=()=>$('bilan').style.display='none';
-$('bi-fin').onclick=()=>{
+$('bi-fin').onclick=async()=>{
   const poche=$('bi-poche').value.trim();
   if(!poche&&bilanSession().nb>0){alert('Renseigne le n° de poche.');$('bi-poche').focus();return}
   // à la fin de la session : n° de poche (colonne N_poche de Session_calendrier), puis recalcul de Recap_poche (comme le bouton Actualiser), placés dans la file après les dernières saisies
-  if(!TEST){const q=[...getQ()];if(poche)q.push({action:'sessionPoche',id:SES.id,poche});q.push({action:'recap'});setQ(q);flush()}
+  if(!TEST){
+    const q=[...getQ()];if(poche)q.push({action:'sessionPoche',id:SES.id,poche});q.push({action:'recap'});setQ(q);
+    const b=$('bi-fin');b.disabled=true;b.textContent='Envoi en cours…';
+    await flush();   // on attend que tout soit parti (20 s maximum par envoi)
+    b.disabled=false;b.textContent='Terminer la session';
+    if(getQ().length&&!confirm('⚠️ '+getQ().length+' envoi(s) ne sont pas encore partis vers le Sheet (réseau faible ?).\n\nIls partiront tout seuls dès que le réseau revient, en rouvrant l\'application sur ce téléphone.\n\nTerminer quand même la session ?'))return;
+  }
   SES=null;try{localStorage.removeItem('ses')}catch(e){}
   $('bilan').style.display='none';majSes();
 };
@@ -627,6 +645,8 @@ setInterval(actualiser,60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)actualiser()});
 majSes();
 majZoom();
+$('attente').onclick=()=>flush();
+majAttente();
 flush();
 window.addEventListener('online',flush);
 </script>
