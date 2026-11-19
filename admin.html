@@ -199,6 +199,7 @@ table.cpt.rpa td.n{text-align:right}
   <div class="tete"><span>Menu</span><button id="fermer" aria-label="Fermer le menu">×</button></div>
   <button class="mi" id="ab-couches" data-titre="Téléchargement des couches">⬇️ Téléchargement des couches</button>
   <button class="mi" id="ab-recap" data-titre="Récapitulatif">📊 Récapitulatif des tournées</button>
+  <button class="mi" id="ab-recap2" data-titre="Nouveau récapitulatif">📈 Nouveau récapitulatif</button>
   <button class="mi" id="ab-cpt" data-titre="Comptage">🧮 Comptage</button>
   <button class="mi" id="ab-param" data-titre="Paramètres">⚙️ Paramètres</button>
   <div class="pied">Administration · menu v1</div>
@@ -710,6 +711,8 @@ $('ab-couches').onclick=()=>{
   brancherAdresses();
 };
 $('ab-recap').onclick=recap;
+// Nouvel onglet « Nouveau récapitulatif » : vide pour le moment, à construire pas à pas
+$('ab-recap2').onclick=()=>{panneau('<h3>Nouveau récapitulatif</h3>',true)};
 
 // ---- Comptage : une ligne par jour, par tournée et par secteur (ville / campagne)
 function lignesComptage(){
@@ -912,10 +915,38 @@ async function validerForm(){
   }
   msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):"Pas de réponse du Sheet : vérifie la feuille Comptage_poche avant de recommencer (un nouvel essai ne crée pas de doublon).",true);
 }
+// Règlements d'une poche (date + tournée + secteur), relus dans les dons chargés : nombre et somme des chèques, somme des espèces
+function reglementsPoche(jour,t,z){
+  const r={n:0,s:0,chn:0,chm:0,esp:0};
+  Object.values(pts).forEach(mk=>{
+    const a=equipe(mk.a),tt=a.eq===undefined||a.eq===''?'':String(a.eq);
+    if(tt!==String(t)||(a.zone||'')!==z)return;
+    Object.entries(mk.D||{}).forEach(([k,dt])=>{
+      const d=mk.L[k];if(!d||d.type!=='don'||jourLocal(dt)!==jour)return;
+      const m=Number(d.montant)||0;r.n++;r.s+=m;
+      if(d.mode==='Chèque'){r.chn++;r.chm+=m}else r.esp+=m;
+    });
+  });
+  return r;
+}
+// Préremplit chèques et espèces si les dons retrouvés correspondent bien à la ligne (même nombre, même somme)
+function prerempliReglements(tr,g){
+  const p=reglementsPoche(tr.dataset.jour,tr.dataset.t,tr.dataset.z);
+  const ok=p.n>0&&p.n===Number(tr.dataset.n)&&g&&Math.abs(p.s-(Number(g.s)||0))<0.005;
+  const r2=x=>Math.round(x*100)/100;
+  $('f-chn').value=ok&&p.chn?p.chn:'';
+  $('f-chm').value=ok&&p.chm?r2(p.chm):'';
+  $('f-espin').value=ok&&p.esp?r2(p.esp):'';
+  $('f-mon').value='';
+  calcForm();
+  const m=$('f-msg');
+  if(m&&!EDIT_ID){m.style.color='#555';m.style.fontWeight='400';m.textContent=ok?'Chèques et espèces préremplis d\'après les dons de l\'app : vérifie avec ton comptage.':'Chèques et espèces non préremplis (poche manuelle, ou plusieurs poches le même jour pour cette tournée).'}
+}
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
   CAL_SEL=tr.dataset.cal||'';   // la poche = la session de calendrier de la ligne
   const g=RECAP[+tr.dataset.i];
+  prerempliReglements(tr,g);
   if(g&&g.equipiers&&g.equipiers.length)appliquerEquipiers(g.equipiers);   // équipiers de cette session
   else remplirEquipiers(tr.dataset.t);   // pas de session connue : équipiers par défaut de Parametres
 }
