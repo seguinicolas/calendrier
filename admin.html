@@ -919,12 +919,15 @@ async function validerForm(){
 function reglementsPoche(jour,t,z){
   const r={n:0,s:0,chn:0,chm:0,esp:0};
   Object.values(pts).forEach(mk=>{
-    const a=equipe(mk.a),tt=a.eq===undefined||a.eq===''?'':String(a.eq);
-    if(tt!==String(t)||(a.zone||'')!==z)return;
+    const a=equipe(mk.a);
     Object.entries(mk.D||{}).forEach(([k,dt])=>{
       const d=mk.L[k];if(!d||d.type!=='don'||jourLocal(dt)!==jour)return;
+      // tournée et secteur du don : ceux enregistrés avec le don, sinon ceux calculés sur la carte
+      const td=d.equipe!==undefined&&d.equipe!==null&&String(d.equipe)!==''?String(d.equipe):(a.eq===undefined||a.eq===''?'':String(a.eq));
+      const zd=d.zone?String(d.zone):(a.zone||'');
+      if(td!==String(t)||zd!==String(z||''))return;
       const m=Number(d.montant)||0;r.n++;r.s+=m;
-      if(d.mode==='Chèque'){r.chn++;r.chm+=m}else r.esp+=m;
+      if(/ch[eèé]que/i.test(String(d.mode||''))){r.chn++;r.chm+=m}else r.esp+=m;
     });
   });
   return r;
@@ -932,7 +935,8 @@ function reglementsPoche(jour,t,z){
 // Préremplit chèques et espèces si les dons retrouvés correspondent bien à la ligne (même nombre, même somme)
 function prerempliReglements(tr,g){
   const p=reglementsPoche(tr.dataset.jour,tr.dataset.t,tr.dataset.z);
-  const ok=p.n>0&&p.n===Number(tr.dataset.n)&&g&&Math.abs(p.s-(Number(g.s)||0))<0.005;
+  const nl=Number(tr.dataset.n),sl=g?Number(g.s)||0:0;
+  const ok=p.n>0&&p.n===nl&&Math.abs(p.s-sl)<0.005;
   const r2=x=>Math.round(x*100)/100;
   $('f-chn').value=ok&&p.chn?p.chn:'';
   $('f-chm').value=ok&&p.chm?r2(p.chm):'';
@@ -940,7 +944,12 @@ function prerempliReglements(tr,g){
   $('f-mon').value='';
   calcForm();
   const m=$('f-msg');
-  if(m&&!EDIT_ID){m.style.color='#555';m.style.fontWeight='400';m.textContent=ok?'Chèques et espèces préremplis d\'après les dons de l\'app : vérifie avec ton comptage.':'Chèques et espèces non préremplis (poche manuelle, ou plusieurs poches le même jour pour cette tournée).'}
+  if(m&&!EDIT_ID){
+    m.style.color='#555';m.style.fontWeight='400';
+    m.textContent=ok?"Chèques et espèces préremplis d'après les dons de l'app : vérifie avec ton comptage."
+      :p.n===0?"Chèques et espèces non préremplis : aucun don de l'app retrouvé pour cette ligne (poche manuelle ?)."
+      :"Chèques et espèces non préremplis : l'app retrouve "+p.n+" calendrier"+(p.n>1?'s':'')+" / "+fmt(p.s)+" pour cette date, cette tournée et ce secteur, mais la ligne indique "+nl+" / "+fmt(sl)+".";
+  }
 }
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
