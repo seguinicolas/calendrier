@@ -854,7 +854,7 @@ function sortirEdition(){
 }
 // Relit tout ce qui dépend des comptages : totaux de la session, liste, tableau de gauche
 function rafraichirSession(){
-  majTotSession();chargerListeSession();
+  majTotSession();chargerListeSession();chargerPochesDet();
   lireRecap().then(d=>tableComptage(d)).catch(()=>{});
 }
 async function supprimerLigne(r){
@@ -932,24 +932,39 @@ function reglementsPoche(jour,t,z){
   });
   return r;
 }
-// Préremplit chèques et espèces si les dons retrouvés correspondent bien à la ligne (même nombre, même somme)
+// Détail de chaque poche lu dans la feuille « Poches » du Google Sheet (clé : id_calendrier)
+let POCHES_DET={};
+function chargerPochesDet(){
+  return fetch(API+'?poches=1&t='+Date.now()).then(r=>r.json()).then(d=>{
+    if(!d||!Array.isArray(d.rows))return;
+    const M={};d.rows.forEach(x=>{if(x.cal)M[x.cal]=x});POCHES_DET=M;
+  }).catch(()=>{});
+}
+// Préremplit chèques et espèces : d'abord d'après la feuille Poches ; si la poche n'y est pas (feuille pas encore en place),
+// on retombe sur le calcul local à partir des dons chargés (même nombre, même somme que la ligne)
 function prerempliReglements(tr,g){
-  const p=reglementsPoche(tr.dataset.jour,tr.dataset.t,tr.dataset.z);
-  const nl=Number(tr.dataset.n),sl=g?Number(g.s)||0:0;
-  const ok=p.n>0&&p.n===nl&&Math.abs(p.s-sl)<0.005;
   const r2=x=>Math.round(x*100)/100;
-  $('f-chn').value=ok&&p.chn?p.chn:'';
-  $('f-chm').value=ok&&p.chm?r2(p.chm):'';
-  $('f-espin').value=ok&&p.esp?r2(p.esp):'';
+  const pd=POCHES_DET[tr.dataset.cal||''];
+  let ok=false,chn=0,chm=0,esp=0,msg='';
+  if(pd){
+    if(pd.detail){ok=true;chn=pd.chn||0;chm=pd.chm||0;esp=pd.esp||0;
+      msg="Chèques et espèces préremplis d'après la feuille Poches ("+(pd.detail==='Comptage'?'comptage déjà enregistré':"dons de l'app")+") : vérifie avec ton comptage."}
+    else msg="Chèques et espèces non préremplis : la feuille Poches n'a pas de détail pour cette poche (poche manuelle non comptée ?)."
+  }else{
+    const p=reglementsPoche(tr.dataset.jour,tr.dataset.t,tr.dataset.z);
+    const nl=Number(tr.dataset.n),sl=g?Number(g.s)||0:0;
+    ok=p.n>0&&p.n===nl&&Math.abs(p.s-sl)<0.005;
+    if(ok){chn=p.chn;chm=p.chm;esp=p.esp;msg="Chèques et espèces préremplis d'après les dons de l'app : vérifie avec ton comptage."}
+    else msg=p.n===0?"Chèques et espèces non préremplis : aucun don de l'app retrouvé pour cette ligne (poche manuelle ?)."
+      :"Chèques et espèces non préremplis : l'app retrouve "+p.n+" calendrier"+(p.n>1?'s':'')+" / "+fmt(p.s)+" pour cette date, cette tournée et ce secteur, mais la ligne indique "+nl+" / "+fmt(sl)+".";
+  }
+  $('f-chn').value=ok&&chn?chn:'';
+  $('f-chm').value=ok&&chm?r2(chm):'';
+  $('f-espin').value=ok&&esp?r2(esp):'';
   $('f-mon').value='';
   calcForm();
   const m=$('f-msg');
-  if(m&&!EDIT_ID){
-    m.style.color='#555';m.style.fontWeight='400';
-    m.textContent=ok?"Chèques et espèces préremplis d'après les dons de l'app : vérifie avec ton comptage."
-      :p.n===0?"Chèques et espèces non préremplis : aucun don de l'app retrouvé pour cette ligne (poche manuelle ?)."
-      :"Chèques et espèces non préremplis : l'app retrouve "+p.n+" calendrier"+(p.n>1?'s':'')+" / "+fmt(p.s)+" pour cette date, cette tournée et ce secteur, mais la ligne indique "+nl+" / "+fmt(sl)+".";
-  }
+  if(m&&!EDIT_ID){m.style.color='#555';m.style.fontWeight='400';m.textContent=msg}
 }
 function remplirDepuisLigne(tr){
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
@@ -1242,7 +1257,7 @@ async function actualiserComptage(){
   if(d&&d.ok===false){etatCpt('Refusé : '+(d.erreur||'erreur inconnue'),true);b.disabled=false;return}
   try{
     if(!(d&&d.ok))d=await lireRecap();
-    tableComptage(d);etatCpt('✔ Tableau actualisé.');
+    tableComptage(d);await chargerPochesDet();etatCpt('✔ Tableau actualisé.');
   }catch(e){etatCpt("Impossible d'actualiser : pas de réponse du Sheet.",true)}
   if($('cpt-actu'))$('cpt-actu').disabled=false;
 }
@@ -1350,7 +1365,7 @@ $('ab-cpt').onclick=()=>{
   $('aff-comptees').onchange=()=>{AFF_COMPTEES=$('aff-comptees').checked;if(LAST_D)tableComptage(LAST_D)};
    $('cpt-plus').onclick=ouvrirSessionManuelle;
   $('cpt-actu').onclick=actualiserComptage;
-  if(TEST)lireRecap().then(d=>{tableComptage(d);etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
+  if(TEST)lireRecap().then(d=>{tableComptage(d);chargerPochesDet();etatCpt('')}).catch(()=>etatCpt("Impossible de lire la feuille Recap_poche : colle d'abord Code_recap.gs et redéploie, puis appuie sur Actualiser.",true));
   else actualiserComptage();   // le tableau est recalculé dans le Sheet dès l'ouverture du Comptage
 };
 
