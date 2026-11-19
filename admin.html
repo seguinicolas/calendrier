@@ -1262,12 +1262,17 @@ async function ouvrirSessionManuelle(){
       ${eqs}
       <label>N° de poche<input id="m-poche" type="text" inputmode="numeric"></label>
       <label>Nombre de calendriers<input id="m-nb" type="number" min="0" step="1" inputmode="numeric"></label>
-      <label>Somme (€)<input id="m-somme" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Chèques (nombre)<input id="m-chn" type="number" min="0" step="1" inputmode="numeric"></label>
+      <label>Chèques (montant €)<input id="m-chm" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Espèces (billets et pièces, en €)<input id="m-esp" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Somme (€)<input id="m-somme" readonly tabindex="-1" style="background:#d9dde2;font-weight:700"></label>
     </div>
     <div class="boutons"><button type="button" class="rouge" id="m-annuler">Annuler</button><button type="button" class="vert" id="m-ok">Créer</button></div>
     <p id="m-msg" class="note"></p></div>`;
   m.classList.add('open');
   SM_EQ.forEach(id=>$(id).addEventListener('change',smGriser));
+  const smSomme=()=>{$('m-somme').value=fmt((Number($('m-chm').value)||0)+(Number($('m-esp').value)||0))};
+  ['m-chm','m-esp'].forEach(id=>$(id).addEventListener('input',smSomme));smSomme();
   $('m-t').onchange=()=>{
     const q=PARAM_REF.equipes.find(x=>x.t===Number($('m-t').value));
     SM_EQ.forEach(id=>{$(id).value=''});
@@ -1280,7 +1285,7 @@ async function ouvrirSessionManuelle(){
 async function creerSessionManuelle(){
   const dt=$('m-dt').value,t=$('m-t').value,z=$('m-z').value;
   const eq=SM_EQ.map(id=>$(id).value),nonVides=eq.filter(Boolean);
-  const nb=Math.max(0,Math.floor(Number($('m-nb').value)||0)),somme=Math.max(0,Number($('m-somme').value)||0);
+  const nb=Math.max(0,Math.floor(Number($('m-nb').value)||0)),chn=Math.max(0,Math.floor(Number($('m-chn').value)||0)),chm=Math.max(0,Number($('m-chm').value)||0),esp=Math.max(0,Number($('m-esp').value)||0),somme=Math.round((chm+esp)*100)/100;
   if(!dt||!t||!z){smMsg('Renseigne la date, le n° de tournée et campagne / ville.');return}
   if(new Set(nonVides).size<nonVides.length){smMsg("Un équipier ne peut être choisi qu'une seule fois.");return}
   if(!(nb>0)&&!(somme>0)){smMsg('Renseigne le nombre de calendriers ou la somme.');return}
@@ -1293,11 +1298,28 @@ async function creerSessionManuelle(){
   $('sm').classList.remove('open');
   await actualiserComptage();   // Recap_poche recalculé, tableau relu
   const tr=document.querySelector(`#cpt-table tr.lg[data-cal="${id}"]`);
-  if(!tr){etatCpt('Poche créée, mais ligne introuvable dans le tableau : appuie sur Actualiser.',true);return}
+  if(!tr){etatCpt('Poche créée, mais ligne introuvable dans le tableau : appuie sur Actualiser. Le comptage n\'a pas été validé.',true);return}
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));
+  if(!(SESSION&&$('cf')))ouvrirSession();   // le comptage doit être rattaché à une session de comptage ouverte
+  // Comptage validé automatiquement, sans passer par le formulaire de droite
+  const envoi={action:'comptage',id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),session:SESSION_ID,idCal:id,dateTournee:dt,t:Number(t),secteur:z,type:'tournee',e1:eq[0],e2:eq[1],e3:eq[2],nb,
+    coupures:VAL.map(()=>0),chequesNb:chn,chequesMontant:chm,monnaie:esp};
+  etatCpt('Poche créée, validation du comptage en cours…');
+  let r=null;
+  for(let essai=0;essai<2&&!r;essai++){
+    try{const x=await fetch(API,{method:'POST',body:JSON.stringify(envoi)});r=await x.json()}catch(e){r=null}
+  }
+  if(r&&r.ok){
+    const cochee=await cocherPoche(dt,t,z,id);
+    tr.scrollIntoView({block:'center'});
+    majTotSession();chargerListeSession();
+    etatCpt('✔ Poche créée et comptage validé ('+fmt(somme)+')'+(cochee?', poche cochée.':". La poche n'a pas pu être cochée : appuie sur Actualiser."),!cochee);
+    return;
+  }
+  // Échec du comptage : la poche existe, on retombe sur le formulaire prérempli pour valider à la main
   tr.classList.add('sel');tr.scrollIntoView({block:'center'});
-  if(SESSION&&$('cf'))remplirDepuisLigne(tr);   // session ouverte : formulaire prérempli
-  else ouvrirSession();                          // sinon on l'ouvre, il se préremplit avec la ligne sélectionnée
+  if($('cf'))remplirDepuisLigne(tr);
+  etatCpt('Poche créée, mais le comptage n\'a pas été enregistré'+(r&&r.erreur?' ('+r.erreur+')':' (pas de réponse du Sheet)')+' : vérifie la feuille Comptage_poche, puis valide avec le formulaire.',true);
 }
 $('ab-cpt').onclick=()=>{
   if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
