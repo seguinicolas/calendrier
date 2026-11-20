@@ -940,7 +940,7 @@ function chargerPochesDet(){
     const M={};d.rows.forEach(x=>{if(x.cal)M[x.cal]=x});POCHES_DET=M;
   }).catch(()=>{});
 }
-// Préremplit chèques et espèces : d'abord d'après la feuille Poches ; si la poche n'y est pas (feuille pas encore en place),
+// Préremplit chèques et espèces : d'abord d'après la feuille Session ; si la poche n'y est pas (feuille pas encore en place),
 // on retombe sur le calcul local à partir des dons chargés (même nombre, même somme que la ligne)
 function prerempliReglements(tr,g){
   const r2=x=>Math.round(x*100)/100;
@@ -948,8 +948,8 @@ function prerempliReglements(tr,g){
   let ok=false,chn=0,chm=0,esp=0,msg='';
   if(pd){
     if(pd.detail){ok=true;chn=pd.chn||0;chm=pd.chm||0;esp=pd.esp||0;
-      msg="Chèques et espèces préremplis d'après la feuille Poches ("+(pd.detail==='Comptage'?'comptage déjà enregistré':"dons de l'app")+") : vérifie avec ton comptage."}
-    else msg="Chèques et espèces non préremplis : la feuille Poches n'a pas de détail pour cette poche (poche manuelle non comptée ?)."
+      msg="Chèques et espèces préremplis d'après la feuille Session ("+(pd.detail==='Comptage'?'comptage déjà enregistré':"dons de l'app")+") : vérifie avec ton comptage."}
+    else msg="Chèques et espèces non préremplis : la feuille Session n'a pas de détail pour cette poche (poche manuelle non comptée ?)."
   }else{
     const p=reglementsPoche(tr.dataset.jour,tr.dataset.t,tr.dataset.z);
     const nl=Number(tr.dataset.n),sl=g?Number(g.s)||0:0;
