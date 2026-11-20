@@ -1037,20 +1037,10 @@ function fermerSession(){
 }
 // ---- Session de comptage : la page Comptage reste en mémoire quand on navigue ailleurs dans l'admin
 let SESSION=false,PAGE='',SESSION_ID='';
-// Totaux de la session en cours : lus dans la feuille recap_compta (ligne portant l'identifiant de la session)
+// Totaux de la session : tableau laissé vide pour le moment (aucun calcul, aucune lecture du Sheet) ; à reconstruire plus tard
 async function majTotSession(){
   if(!$('cpttotrow'))return;
-  const id=SESSION_ID;let v=new Array(15).fill(0);
-  if(id&&!TEST){
-    try{
-      const d=await fetch(API+'?recapcompta=1&t='+Date.now()).then(x=>x.json());
-      if(!d||!Array.isArray(d.rows))throw new Error('format');
-      const l=d.rows.find(x=>x.session===id);
-      if(l)v=l.vals;
-    }catch(e){etatCpt("Totaux de la session indisponibles : lecture de recap_compta impossible (Code.gs à mettre à jour et redéployer ?).",true);return}
-  }
-  if(id!==SESSION_ID||!$('cpttotrow'))return;   // la session a changé pendant la lecture
-  $('cpttotrow').innerHTML=[v[0],v[1],fmt(v[2]),...v.slice(3,11),fmt(v[11]),fmt(v[12]),v[13],fmt(v[14])].map(x=>'<td>'+x+'</td>').join('');
+  $('cpttotrow').innerHTML='<td>&nbsp;</td>'.repeat(15);
 }
 const nouvelIdSession=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'S'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
 function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-poches').style.display=s?'':'none';$('cpt-histo').style.display=s?'':'none';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
@@ -1166,7 +1156,7 @@ function rendrePoches(){
     +sel('pc-t','t','Tournée',op('','Toutes les tournées',f.t)+tournees.map(t=>op(t,t==='none'?'Hors tournée':'Tournée '+t,f.t)).join(''))
     +(pers.length?sel('pc-p','p','Personne',op('','Toutes les personnes',f.p)+pers.map(p=>op(p,p,f.p)).join('')):'')
     +sel('pc-d','d','Date',op('','Toutes les dates',f.d)+jours.map(j=>op(j,dateFr(j),f.d)).join(''))
-    +sel('pc-z','z','Secteur',op('','Tous les secteurs',f.z)+op('ville','Ville',f.z)+op('campagne','Campagne',f.z)+op('none','Hors secteur',f.z))
+    +sel('pc-z','z','Secteur',op('','Tous les secteurs',f.z)+op('ville','Ville',f.z)+op('campagne','Campagne',f.z))
     +sel('pc-a','a','compt_amicale',op('','Toutes',f.a)+op('oui','Cochées (comptées)',f.a)+op('non','Non cochées (non comptées)',f.a))
     +'</div><p id="pc-sum" style="font-weight:700;margin:2px 0 8px"></p><div id="pc-table"></div>'
     +'<p class="note" style="margin-top:10px">Données de la feuille Recap_poche'+(POCHES_MAJ?' (dernière actualisation : '+esc(POCHES_MAJ)+')':'')+' ; le bouton Actualiser du Comptage la recalcule. Le filtre « Personne » utilise les équipiers actuels de chaque tournée (feuille Parametres).</p>';
@@ -1182,7 +1172,7 @@ async function ouvrirPoches(){
     const d=await lireRecap();
     try{if(!PARAM_REF)await chargerParametres()}catch(e){}
     if($('histo-titre').textContent!=='Comptage des poches')return;   // une autre fenêtre a été ouverte entre-temps
-    POCHES=d.rows.filter(g=>g.jour);POCHES_MAJ=d.maj||'';
+    POCHES=d.rows.filter(g=>g.jour&&(g.z==='ville'||g.z==='campagne'));   // hors secteur : ignoréPOCHES_MAJ=d.maj||'';
     Object.assign(FILTRES_PC,{t:'',p:'',d:'',z:'',a:''});
     rendrePoches();
   }catch(e){$('histo-corps').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Poches indisponibles : lecture de la feuille Recap_poche impossible.</p>'}
@@ -1218,6 +1208,7 @@ function tableComptage(d){
   LAST_D=d;RECAP=d.rows;let tn=0,ts=0,vis=0;
   const ordre=trier(RECAP.map((g,i)=>({g,i})),'gauche',COLS_G);
   const lignes=ordre.map(({g,i})=>{
+    if(g.z!=='ville'&&g.z!=='campagne')return '';   // hors secteur : ignoré
     if(g.amicale&&!AFF_COMPTEES&&!GARDEES.has(cleP(g)))return '';   // poche déjà comptée : non affichée
     vis++;tn+=g.n;ts+=g.s;
     return `<tr class="lg${g.amicale?' ok':''}" data-i="${i}" data-jour="${g.jour}" data-t="${g.t}" data-z="${g.z}" data-n="${g.n}" data-cal="${esc(g.calendrier||'')}">
@@ -1354,7 +1345,7 @@ $('ab-cpt').onclick=()=>{
     <div class="cptleft">
            <div style="display:flex;align-items:center"><label class="affc" style="margin:0"><input type="checkbox" id="aff-comptees"> Afficher aussi les poches comptées</label><button id="cpt-plus" title="Créer une poche manuelle (équipe sans l'app)">➕</button></div> Afficher aussi les poches comptées</label>
       <div id="cpt-table"></div>
-      <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille. « Hors secteur » : dons hors de tes secteurs tracés.</p>
+      <p class="note">Appuie sur une ligne pour préremplir le formulaire. Actualiser recalcule la feuille Recap_poche à partir des dons enregistrés ; les cases compt_amicale sont enregistrées dans cette feuille.</p>
     </div>
     <div class="cptcol">
       <div id="cptdroite" class="cptdroite"><button id="ouvrir-session" class="gros">➕ Ouvrir une session de comptage</button></div>
