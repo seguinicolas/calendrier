@@ -807,7 +807,7 @@ function brancherTri(zone,tab,rerendre){
 const COLS_G=[o=>o.g.jour,o=>o.g.t===''?999:Number(o.g.t),o=>o.g.z==='ville'?'Ville':o.g.z==='campagne'?'Campagne':'Hors secteur',o=>o.g.n,o=>o.g.s,o=>String(o.g.npoche||'').padStart(10,'0'),o=>o.g.amicale?1:0];
 const COLS_L=[o=>o.r.jour,o=>Number(o.r.t),o=>o.r.z==='ville'?'Ville':'Campagne',o=>o.r.nb,o=>o.r.esp,o=>o.r.chm,o=>o.r.total];
 
-// ---- Récap des comptages validés dans la session (feuille Comptage_poche) : modifier ✏️ / supprimer ❌
+// ---- Récap des comptages validés dans la session (feuille Session) : modifier ✏️ / supprimer ❌
 let EDIT_ID='',LISTE=[];
 async function chargerListeSession(){
   const z=$('cptlist');if(!z)return;
@@ -864,9 +864,9 @@ async function supprimerLigne(r){
   try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'comptageSuppr',id:r.id})});d=await x.json()}catch(e){d=null}
   if(d&&d.ok){
     if(EDIT_ID===r.id)sortirEdition();
-    rafraichirSession();msgForm('✔ Comptage supprimé (copie gardée dans la feuille Comptage_poche supprimés).');return;
+    rafraichirSession();msgForm('✔ Comptage supprimé (copie gardée dans la feuille Session comptages supprimés).');return;
   }
-  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : rien ne semble avoir été supprimé. Vérifie la feuille Comptage_poche.',true);
+  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : rien ne semble avoir été supprimé. Vérifie la feuille Session.',true);
 }
 // Coche automatiquement compt_amicale pour la poche validée (même fonction du Sheet que la case cochée à la main)
 async function cocherPoche(dt,t,z,cal){
@@ -887,6 +887,7 @@ async function validerForm(){
   const eq=EQ_IDS.map(i=>$(i).value),nonVides=eq.filter(Boolean);
   if(new Set(nonVides).size<nonVides.length){msgForm("Un équipier ne peut être choisi qu'une seule fois.",true);return}
   if(!dt||!t||!z){msgForm('Renseigne la date de la tournée, le n° de tournée et campagne / ville.',true);return}
+  if(!EDIT_ID&&!CAL_SEL){msgForm("Choisis d'abord la poche dans le tableau de gauche.",true);return}
   if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
   if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet. Total calculé : "+fmt(c.tot),true);return}
   if(!COMPTAGE_ID)COMPTAGE_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -911,9 +912,9 @@ async function validerForm(){
     const cochee=await cocherPoche(dt,t,z,CAL_SEL);   // la poche correspondante (date + tournée + secteur) est cochée dans le tableau de gauche
     COMPTAGE_ID='';resetForm();EQ_IDS.forEach(id=>fixerEquipier(id,''));
     majTotSession();chargerListeSession();   // totaux de la session relus dans recap_compta, liste mise à jour
-    msgForm('✔ Comptage enregistré dans la feuille Comptage_poche ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
+    msgForm('✔ Comptage enregistré dans la feuille Session ('+fmt(c.tot)+')'+(cochee?' et poche cochée.':". La poche n'a pas pu être cochée (ligne introuvable) : appuie sur Actualiser."),!cochee);return;
   }
-  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):"Pas de réponse du Sheet : vérifie la feuille Comptage_poche avant de recommencer (un nouvel essai ne crée pas de doublon).",true);
+  msgForm(d?'Refusé : '+(d.erreur||'erreur inconnue'):"Pas de réponse du Sheet : vérifie la feuille Session avant de recommencer (un nouvel essai ne crée pas de doublon).",true);
 }
 // Règlements d'une poche (date + tournée + secteur), relus dans les dons chargés : nombre et somme des chèques, somme des espèces
 function reglementsPoche(jour,t,z){
@@ -1109,7 +1110,7 @@ function imprimerIndiv(){
   setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
 }
 // ---- Comptage des poches : toutes les poches déposées (comptées ou non), avec filtres et impression PDF
-// Données = feuille Recap_poche (lecture seule). Le filtre « personne » s'appuie sur les équipiers de chaque tournée dans Paramètres.
+// Données = feuille Session (lecture seule). Le filtre « personne » s'appuie sur les équipiers de chaque tournée dans Paramètres.
 let POCHES=[],POCHES_MAJ='';
 const FILTRES_PC={t:'',p:'',d:'',z:'',a:''};
 const dateFr=j=>String(j).split('-').reverse().join('/');
@@ -1189,7 +1190,7 @@ $('cpt-poches').onclick=ouvrirPoches;
 $('cpt-histo').onclick=ouvrirHisto;
 $('histo-fermer').onclick=()=>$('histo').classList.remove('open');
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('histo').classList.remove('open')});
-// ---- Comptage : le tableau vient de la feuille Recap_poche (bouton Actualiser = recalcul dans le Sheet)
+// ---- Comptage : le tableau vient de la feuille Session (bouton Actualiser = recalcul dans le Sheet)
 let RECAP=[];
 let CAL_SEL='';   // id_calendrier de la poche (ligne cliquée) : sert au comptage et à la case compt_amicale
 // Poches déjà comptées : masquées à l'ouverture du Comptage, sauf celles validées pendant la session (elles restent visibles, en vert)
@@ -1309,9 +1310,9 @@ async function creerSessionManuelle(){
   $('m-ok').disabled=true;smMsg('Création en cours…');$('m-msg').style.color='#555';
   let d=null;
   try{const x=await fetch(API,{method:'POST',body:JSON.stringify({action:'sessionCalendrier',id,date:new Date(dt+'T12:00:00').toISOString(),t:Number(t),secteur:z,type:'manuelle',e1:eq[0],e2:eq[1],e3:eq[2],poche:$('m-poche').value.trim(),nb,somme})});d=await x.json()}catch(e){d=null}
-  if(!(d&&d.ok)){$('m-ok').disabled=false;smMsg(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : vérifie la feuille Session_calendrier avant de recommencer.');return}
+  if(!(d&&d.ok)){$('m-ok').disabled=false;smMsg(d?'Refusé : '+(d.erreur||'erreur inconnue'):'Pas de réponse du Sheet : vérifie la feuille Session avant de recommencer.');return}
   $('sm').classList.remove('open');
-  await actualiserComptage();   // Recap_poche recalculé, tableau relu
+  await actualiserComptage();   // feuille Session recalculée, tableau relu
   const tr=document.querySelector(`#cpt-table tr.lg[data-cal="${id}"]`);
   if(!tr){etatCpt('Poche créée, mais ligne introuvable dans le tableau : appuie sur Actualiser. Le comptage n\'a pas été validé.',true);return}
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));
@@ -1334,7 +1335,7 @@ async function creerSessionManuelle(){
   // Échec du comptage : la poche existe, on retombe sur le formulaire prérempli pour valider à la main
   tr.classList.add('sel');tr.scrollIntoView({block:'center'});
   if($('cf'))remplirDepuisLigne(tr);
-  etatCpt('Poche créée, mais le comptage n\'a pas été enregistré'+(r&&r.erreur?' ('+r.erreur+')':' (pas de réponse du Sheet)')+' : vérifie la feuille Comptage_poche, puis valide avec le formulaire.',true);
+  etatCpt('Poche créée, mais le comptage n\'a pas été enregistré'+(r&&r.erreur?' ('+r.erreur+')':' (pas de réponse du Sheet)')+' : vérifie la feuille Session, puis valide avec le formulaire.',true);
 }
 $('ab-cpt').onclick=()=>{
   if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
