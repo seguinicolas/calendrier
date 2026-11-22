@@ -1198,6 +1198,7 @@ let AFF_COMPTEES=false,LAST_D=null;
 const GARDEES=new Set();const cleP=g=>g.jour+'|'+g.t+'|'+g.z;
 // Origine des poches : la feuille Session du Google Sheet (une ligne par session = une poche). Les lignes sont remises dans la forme attendue par le tableau.
 const lireRecap=()=>fetch(API+'?poches=1&t='+Date.now()).then(r=>r.json()).then(d=>{
+  if(d&&d.erreur){const e=new Error(d.erreur);e.msgSheet=true;throw e}
   if(!d||!Array.isArray(d.rows))throw new Error('format');
   const M={};d.rows.forEach(x=>{if(x.cal)M[x.cal]=x});POCHES_DET=M;   // détail chèques / espèces pour le préremplissage
   return {ok:true,maj:d.maj||'',rows:d.rows.map(x=>({jour:x.jour,t:x.t,z:x.z,n:x.n,s:x.s,amicale:x.amicale,dc:x.dc||'',session:x.session||'',
@@ -1250,7 +1251,7 @@ async function actualiserComptage(){
   try{
     d=await lireRecap();
     tableComptage(d);etatCpt('✔ Tableau actualisé.');
-  }catch(e){etatCpt("Impossible d'actualiser : pas de réponse du Sheet.",true)}
+  }catch(e){etatCpt(e&&e.msgSheet?e.message:"Impossible d'actualiser : pas de réponse du Sheet.",true)}
   if($('cpt-actu'))$('cpt-actu').disabled=false;
 }
 // ---- Poche manuelle : session de calendrier créée à la main pour une équipe qui n'utilise pas l'app
