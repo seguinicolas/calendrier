@@ -887,12 +887,13 @@ async function validerForm(){
   if(new Set(nonVides).size<nonVides.length){msgForm("Un équipier ne peut être choisi qu'une seule fois.",true);return}
   if(!dt||!t||!z){msgForm('Renseigne la date de la tournée, le n° de tournée et campagne / ville.',true);return}
   if(!EDIT_ID&&!CAL_SEL){msgForm("Choisis d'abord la poche dans le tableau de gauche.",true);return}
-  if(!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
+   const regr=!!($('f-regr')&&$('f-regr').checked);
+  if(!regr&&!(c.nb>0)&&!(c.tot>0)){msgForm('Renseigne le nombre de calendriers ou un montant.',true);return}
   if(TEST){msgForm("Mode test : rien n'est envoyé au Sheet. Total calculé : "+fmt(c.tot),true);return}
   if(!COMPTAGE_ID)COMPTAGE_ID=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
   const envoi={action:'comptage',id:COMPTAGE_ID,session:SESSION_ID,idCal:CAL_SEL,dateTournee:dt,t:Number(t),secteur:z,type:$('f-ty').value,e1:eq[0],e2:eq[1],e3:eq[2],nb:c.nb,
     coupures:VAL.map(()=>0),
-    chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Math.round(c.esp*100)/100};
+    chequesNb:Math.max(0,Math.floor(Number($('f-chn').value)||0)),chequesMontant:Number($('f-chm').value)||0,monnaie:Math.round(c.esp*100)/100,regroupage:regr};
   if(EDIT_ID){envoi.action='comptageModif';envoi.id=EDIT_ID}
   $('f-valider').disabled=true;msgForm('Enregistrement en cours…');
   let d=null;
@@ -961,6 +962,7 @@ function prerempliReglements(tr,g){
   if(m&&!EDIT_ID){m.style.color='#555';m.style.fontWeight='400';m.textContent=msg}
 }
 function remplirDepuisLigne(tr){
+  if($('f-regr'))$('f-regr').checked=false;
   $('f-dt').value=tr.dataset.jour;$('f-t').value=tr.dataset.t;$('f-z').value=tr.dataset.z;$('f-nb').value=tr.dataset.n;calcForm();
   CAL_SEL=tr.dataset.cal||'';   // la poche = la session de calendrier de la ligne
   const g=RECAP[+tr.dataset.i];
@@ -1015,6 +1017,7 @@ function ouvrirSession(){
   const z=$('cptdroite');z.classList.add('ouvert');z.innerHTML=formulaireHtml();
   $('cpttot').classList.add('ouvert');SESSION=true;SESSION_ID=nouvelIdSession();majTotSession();chargerListeSession();$('cpt-fermer').title='Session '+SESSION_ID;majBandeauCpt();
   $('cf').addEventListener('input',calcForm);
+    $('f-regr').onchange=()=>{if($('f-regr').checked){['f-nb','f-espin','f-chn','f-chm','f-mon'].forEach(i=>{const e=$(i);if(e)e.value=''});calcForm()}};
   prepEquipiers();
   EQ_IDS.forEach(id=>$(id).addEventListener('change',griserEquipiers));
   $('f-t').addEventListener('change',()=>remplirEquipiers($('f-t').value));   // saisie directe : équipiers 1 et 2 remplis selon la tournée
