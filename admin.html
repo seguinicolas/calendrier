@@ -149,6 +149,8 @@ table.cpt.cpttot td{white-space:nowrap}
 .boutons{display:flex;gap:14px;margin:6px 0}
 .boutons button{flex:1;max-width:220px;font-size:16px;padding:10px;border:1px solid #888;border-radius:6px;cursor:pointer;font-weight:700}
 .boutons .rouge{background:#ffbcbc}.boutons .vert{background:#7dff7d}
+.cptform .boutons .regr{margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:14px;color:#33475b;cursor:pointer}
+.cptform .boutons .regr input{display:inline-block;width:18px;height:18px;margin:0}  
 table.cpt input[type=checkbox]{width:20px;height:20px}
 #abar{position:fixed;top:0;left:0;right:0;height:52px;background:#1a2b4c;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;z-index:50;box-shadow:0 2px 6px #0004;font-family:system-ui,sans-serif}
 #abar b{font-size:17px}
@@ -760,7 +762,7 @@ function formulaireHtml(){
       <label>Total espèces<input id="f-esp" class="gris" readonly tabindex="-1"></label>
       <label>Total<input id="f-tot" class="gris" readonly tabindex="-1"></label>
     </div>
-    <div class="boutons"><button type="button" id="f-annuler" class="rouge">Annuler</button><button type="button" id="f-valider" class="vert">Valider</button></div>
+   <div class="boutons"><button type="button" id="f-annuler" class="rouge">Annuler</button><button type="button" id="f-valider" class="vert">Valider</button><label class="regr"><input type="checkbox" id="f-regr"> Regroupage, à annuler</label></div>
     <p id="f-msg" class="note"></p>
   </form>`;
 }
@@ -773,6 +775,7 @@ function calcForm(){
 function msgForm(t,erreur){const m=$('f-msg');if(m){m.textContent=t;m.style.color=erreur?'#c62828':'#2e7d32';m.style.fontWeight='700'}}
 function resetForm(){
   CAL_SEL='';
+    if($('f-regr'))$('f-regr').checked=false;
   $('cf').querySelectorAll('input:not([readonly]),select').forEach(x=>{if(x.id==='f-ty')x.value='tournee';else x.value=''});
   document.querySelectorAll('table.cpt tr.sel').forEach(r=>r.classList.remove('sel'));calcForm();
 }
@@ -1045,7 +1048,7 @@ function afficherCpt(){$('apanel').style.display='none';$('apanelcpt').style.dis
 function panneauCpt(html){$('apanelcpt').innerHTML=html;afficherCpt()}
 $('cpt-fermer').onclick=()=>{
   const cf=$('cf');
-  const saisi=cf&&[...cf.querySelectorAll('input:not([readonly]),select')].some(x=>x.id==='f-ty'?x.value!=='tournee':x.value!=='');
+ const saisi=cf&&[...cf.querySelectorAll('input:not([readonly]),select')].some(x=>x.type==='checkbox'?x.checked:x.id==='f-ty'?x.value!=='tournee':x.value!=='');
   if(saisi&&!confirm('Fermer la session de comptage ? Ce qui est saisi dans le formulaire et pas encore validé sera perdu.'))return;
   fermerSession();
 };
