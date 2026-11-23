@@ -1038,9 +1038,17 @@ function fermerSession(){
 // ---- Session de comptage : la page Comptage reste en mémoire quand on navigue ailleurs dans l'admin
 let SESSION=false,PAGE='',SESSION_ID='';
 // Totaux de la session : tableau laissé vide pour le moment (aucun calcul, aucune lecture du Sheet) ; à reconstruire plus tard
+// Totaux de la session en cours : ligne de recap_compta portant l'id de la séance (lue dans Code.gs)
 async function majTotSession(){
   if(!$('cpttotrow'))return;
-  $('cpttotrow').innerHTML='<td>&nbsp;</td>'.repeat(15);
+  const id=SESSION_ID;
+  let r=null;
+  if(!TEST&&id){
+    try{const d=await fetch(API+'?totauxsession='+encodeURIComponent(id)+'&t='+Date.now()).then(x=>x.json());if(d&&d.ok)r=d.row}catch(e){r=null}
+  }
+  if(id!==SESSION_ID||!$('cpttotrow'))return;   // la session a changé entre-temps
+  const z=r||{date:new Date().toLocaleDateString('fr-FR'),n:0,nb:0,chn:0,chm:0,esp:0,total:0};
+  $('cpttotrow').innerHTML=[z.date,z.n,z.nb,z.chn,fmt(z.chm),fmt(z.esp),fmt(z.total)].map(x=>'<td>'+esc(x)+'</td>').join('');
 }
 const nouvelIdSession=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return 'S'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
 function majBandeauCpt(){const s=PAGE==='ab-cpt';$('cpt-poches').style.display=s?'':'none';$('cpt-histo').style.display=s?'':'none';$('cpt-actu').style.display=s?'':'none';$('cpt-fermer').style.display=(s&&SESSION)?'':'none'}
@@ -1346,7 +1354,7 @@ async function creerSessionManuelle(){
 $('ab-cpt').onclick=()=>{
   if(SESSION&&$('cptdroite')){afficherCpt();actualiserComptage();majTotSession();chargerListeSession();return}   // session ouverte : page conservée
   GARDEES.clear();AFF_COMPTEES=false;LAST_D=null;
-  panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Nbr<br>poche</th><th>Nbr<br>calendrier</th><th>Total</th><th>0,50 €</th><th>1 €</th><th>2 €</th><th>5 €</th><th>10 €</th><th>20 €</th><th>50 €</th><th>100 €</th><th>Monnaie</th><th>Total<br>espèces</th><th>Nbr<br>chèques</th><th>Total<br>chèques</th></tr><tr id="cpttotrow"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
+  panneauCpt(`<div class="cpttotwrap" id="cpttot"><table class="cpt cpttot"><tr><th>Date</th><th>Nombre<br>de session</th><th>Nbr<br>calendrier</th><th>Nbr<br>chèques</th><th>Montant<br>chèques</th><th>Espèces</th><th>Total</th></tr><tr id="cpttotrow"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr></table></div>
     <p id="cpt-etat" class="note" style="margin:8px 0">Chargement…</p>
     <div class="cptwrap">
     <div class="cptleft">
