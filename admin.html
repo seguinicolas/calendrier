@@ -1062,10 +1062,10 @@ $('cpt-fermer').onclick=()=>{
 };
 // ---- Historique des comptages : tableau recap_compta de l'année en cours, avec impression / PDF de chaque ligne
 // La date de chaque ligne vient de l'identifiant de session (S20261110-143005 = 10/11/2026).
-const HISTO_LIB=['Nbr poche','Nbr calendrier','Total','0,50 €','1 €','2 €','5 €','10 €','20 €','50 €','100 €','Monnaie','Total espèces','Nbr chèques','Total chèques'];
-const HISTO_EUR=[2,11,12,14];   // colonnes en euros (les autres sont des quantités)
+const HISTO_LIB=['Nombre de session','Nbr calendrier','Nbr chèques','Montant chèques','Espèces','Total'];
+const HISTO_EUR=[3,4,5];   // colonnes en euros (les autres sont des quantités)
 const histoVal=(v,i)=>HISTO_EUR.includes(i)?fmt(Number(v)||0):String(v);
-function dateSession(id){const m=String(id).match(/^S(\d{4})(\d{2})(\d{2})-/);return m?{an:m[1],txt:m[3]+'/'+m[2]+'/'+m[1]}:null}
+function dateJour(j){const m=String(j).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?{an:m[1],txt:m[3]+'/'+m[2]+'/'+m[1]}:null}
 let HISTO=[];
 function rendreHisto(){
   const z=$('histo-corps');
@@ -1082,7 +1082,7 @@ async function ouvrirHisto(){
     const d=await fetch(API+'?recapcompta=1&t='+Date.now()).then(x=>x.json());
     if(!d||!Array.isArray(d.rows))throw new Error('format');
     const an=String(new Date().getFullYear());
-    HISTO=d.rows.map(r=>({session:r.session,vals:r.vals,date:dateSession(r.session)})).filter(r=>r.date&&r.date.an===an).sort((a,b)=>b.session.localeCompare(a.session));
+    HISTO=d.rows.map(r=>({session:r.session,vals:r.vals,date:dateJour(r.jour)})).filter(r=>r.date&&r.date.an===an).sort((a,b)=>b.session.localeCompare(a.session));
     rendreHisto();
   }catch(e){$('histo-corps').innerHTML='<p class="note" style="color:#c62828;font-weight:700">Historique indisponible : lecture de recap_compta impossible.</p>'}
 }
