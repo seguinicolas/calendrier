@@ -757,7 +757,6 @@ function formulaireHtml(){
       <label>Espèces (billets et pièces, en €)<input id="f-espin" type="number" min="0" step="0.01" inputmode="decimal"></label>
       <label>Chèques (nombre)<input id="f-chn" type="number" min="0" step="1" inputmode="numeric"></label>
       <label>Chèques (montant €)<input id="f-chm" type="number" min="0" step="0.01" inputmode="decimal"></label>
-      <label>Monnaie (montant €)<input id="f-mon" type="number" min="0" step="0.01" inputmode="decimal"></label>
       <label>Total espèces<input id="f-esp" class="gris" readonly tabindex="-1"></label>
       <label>Total<input id="f-tot" class="gris" readonly tabindex="-1"></label>
     </div>
@@ -766,7 +765,7 @@ function formulaireHtml(){
   </form>`;
 }
 function calcForm(){
-  const esp=(Number($('f-espin').value)||0)+(Number($('f-mon').value)||0);
+ const esp=Number($('f-espin').value)||0;
   const chq=Number($('f-chm').value)||0,tot=esp+chq,nb=Number($('f-nb').value)||0;
   $('f-esp').value=fmt(esp);$('f-tot').value=fmt(tot);$('f-moy').value=nb>0?fmt(tot/nb):'';
   return {esp,chq,tot,nb};
@@ -839,7 +838,7 @@ async function modifierLigne(r){
   $('f-dt').value=r.jour;$('f-t').value=String(r.t);$('f-z').value=r.z;$('f-ty').value=r.type;$('f-nb').value=r.nb||'';
   const esp0=Math.round((r.q.reduce((s,n,i)=>s+(Number(n)||0)*VAL[i],0)+(Number(r.mon)||0))*100)/100;
   $('f-espin').value=esp0||'';
-  $('f-chn').value=r.chn||'';$('f-chm').value=r.chm||'';$('f-mon').value='';
+  $('f-chn').value=r.chn||'';$('f-chm').value=r.chm||'';
   await prepEquipiers();
   fixerEquipier('f-e1',r.e1);fixerEquipier('f-e2',r.e2);fixerEquipier('f-e3',r.e3);
   calcForm();
@@ -956,7 +955,7 @@ function prerempliReglements(tr,g){
   $('f-chn').value=ok&&chn?chn:'';
   $('f-chm').value=ok&&chm?r2(chm):'';
   $('f-espin').value=ok&&esp?r2(esp):'';
-  $('f-mon').value='';
+ 
   calcForm();
   const m=$('f-msg');
   if(m&&!EDIT_ID){m.style.color='#555';m.style.fontWeight='400';m.textContent=msg}
