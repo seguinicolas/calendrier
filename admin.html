@@ -726,7 +726,63 @@ $('ab-recap2').onclick=()=>{
 };
 function afficherOngletNR(o){
   document.querySelectorAll('#onglets-nr button').forEach(b=>b.classList.toggle('on',b.dataset.o===o));
-  $('nr-contenu').innerHTML='<p class="note">'+(o==='app'?'Données application':'Données comptages amicale')+' : à construire.</p>';
+  $('nr-contenu').innerHTML='<div id="nr-zone"></div>';
+  if(o==='app')rendreBilanFeuille('nr-zone','bilanapp','Bilan_app');
+  else rendreBilanFeuille('nr-zone','bilancomptage','Bilan_comptage');
+}
+// Reproduit une feuille du Sheet (Bilan_app / Bilan_comptage) : valeurs, cellules fusionnées, gras et couleurs de fond
+let NR_TOK=0;
+function rendreBilanFeuille(zoneId,param,nomFeuille){
+  const tok=++NR_TOK,z=$(zoneId);if(!z)return;
+  z.innerHTML='<p class="note">Chargement…</p>';
+  fetch(API+'?'+param+'=1&t='+Date.now()).then(r=>r.json()).catch(()=>null).then(d=>{
+    if(tok!==NR_TOK||!$(zoneId))return;
+    if(!d||!Array.isArray(d.rows)){$(zoneId).innerHTML='<p class="note" style="color:#c62828;font-weight:700">Lecture de la feuille '+nomFeuille+' impossible (Code.gs à mettre à jour et redéployer ?).</p>';return}
+    if(!d.rows.length){$(zoneId).innerHTML='<p class="note">La feuille '+nomFeuille+' est vide ou introuvable.</p>';return}
+    const R=d.rows,nr=R.length,nc=R[0].length;
+    const vide=(i,j)=>String(R[i][j]).trim()==='';
+    const num=c=>/^[-−+]?[\d\s.,]+\s*(€|%)?$/.test(String(c).trim());
+    const M={},cache=new Set();
+    (d.merges||[]).forEach(m=>{M[m.r+','+m.c]=m;for(let a=0;a<m.nr;a++)for(let b=0;b<m.nc;b++)if(a||b)cache.add((m.r+a)+','+(m.c+b))});
+    // titre en A1 : il déborde sur les cellules vides à sa droite
+    let tFin=0;
+    if(!vide(0,0)&&!num(R[0][0])&&!M['0,0']){tFin=1;while(tFin<nc&&vide(0,tFin))tFin++}
+    const plein=(i,j)=>!vide(i,j)&&!(i===0&&j===0&&tFin>0);
+    // blocs de colonnes (séparés par des colonnes vides) : cadre entre la première et la dernière ligne remplie du bloc
+    const haut=[],bas=[],bloc=[];
+    for(let j=0;j<nc;j++){let h=-1,b=-1;for(let i=0;i<nr;i++)if(plein(i,j)){if(h<0)h=i;b=i}haut[j]=h;bas[j]=b}
+    for(let j=0;j<nc;){
+      if(haut[j]<0){bloc[j]=null;j++;continue}
+      let k=j,hh=haut[j],bb=bas[j];
+      while(k+1<nc&&haut[k+1]>=0){k++;hh=Math.min(hh,haut[k]);bb=Math.max(bb,bas[k])}
+      for(let x=j;x<=k;x++)bloc[x]=[hh,bb];
+      j=k+1;
+    }
+    let h='<table style="border-collapse:collapse;background:#fff;font-size:14px">';
+    for(let i=0;i<nr;i++){
+      h+='<tr>';
+      for(let j=0;j<nc;j++){
+        if(cache.has(i+','+j))continue;
+        const v=String(R[i][j]).trim(),m=M[i+','+j];
+        const titre=i===0&&j===0&&tFin>0;
+        let span='';
+        if(m)span=(m.nc>1?' colspan="'+m.nc+'"':'')+(m.nr>1?' rowspan="'+m.nr+'"':'');
+        if(titre)span=' colspan="'+tFin+'"';
+        const gras=d.gras&&d.gras[i]&&d.gras[i][j],fond=d.fonds&&d.fonds[i]?d.fonds[i][j]:'';
+        const cadre=!titre&&(v!==''||(bloc[j]&&i>=bloc[j][0]&&i<=bloc[j][1]));
+        let st=haut[j]<0?'min-width:22px;':'padding:5px 9px;white-space:nowrap;';
+        if(cadre)st+='border:1px solid #888;';
+        if(titre)st+='font-size:22px;padding-bottom:10px;text-align:left;';
+        else st+='text-align:'+(m||gras?'center':(num(v)?'right':'left'))+';';
+        if(gras||titre)st+='font-weight:700;';
+        if(fond)st+='background:'+fond+';';
+        h+='<td'+span+' style="'+st+'">'+esc(v)+'</td>';
+        if(titre)j=tFin-1;
+      }
+      h+='</tr>';
+    }
+    $(zoneId).innerHTML='<div style="overflow-x:auto">'+h+'</table></div>';
+  });
 }
 
 // ---- Comptage : une ligne par jour, par tournée et par secteur (ville / campagne)
