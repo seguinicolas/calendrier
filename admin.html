@@ -781,11 +781,26 @@ function rendreBilanFeuille(zoneId,param,nomFeuille){
       }
       h+='</tr>';
     }
-    $(zoneId).innerHTML='<div style="overflow-x:auto">'+h+'</table></div>';
+       $(zoneId).innerHTML='<div style="display:flex;gap:12px;align-items:flex-start"><div style="overflow-x:auto;flex:1;min-width:0">'+h+'</table></div><button class="pdf" id="nr-pdf" title="Imprimer ou enregistrer en PDF">📄 PDF</button></div>';
+    $('nr-pdf').onclick=()=>imprimerBilanFeuille(zoneId,nomFeuille);
   });
 }
 
 // ---- Comptage : une ligne par jour, par tournée et par secteur (ville / campagne)
+  
+  // Impression d'une feuille reproduite (Bilan_app / Bilan_comptage) : page A4 en paysage, réduite pour tenir en largeur
+function imprimerBilanFeuille(zoneId,titre){
+  const z=$(zoneId),t=z&&z.querySelector('table');if(!t)return;
+  const zoom=Math.min(1,1000/Math.max(t.scrollWidth,1));
+  const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>'+esc(titre)+'</title><style>@page{size:landscape;margin:12mm}body{font-family:system-ui,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}h1{font-size:16px;margin:0 0 4px}p{margin:2px 0 10px;color:#444;font-size:11px}.z{zoom:'+zoom.toFixed(3)+'}</style></head><body><h1>'+esc(titre)+'</h1><p>Imprimé le '+new Date().toLocaleDateString('fr-FR')+'</p><div class="z">'+t.outerHTML+'</div></body></html>';
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const w=f.contentWindow;
+  w.document.open();w.document.write(html);w.document.close();
+  w.onafterprint=()=>f.remove();
+  setTimeout(()=>{w.focus();w.print();setTimeout(()=>f.remove(),60000)},250);
+}
 function lignesComptage(){
   const G={};
   Object.values(pts).forEach(mk=>{
