@@ -714,7 +714,20 @@ $('ab-couches').onclick=()=>{
 };
 $('ab-recap').onclick=recap;
 // Nouvel onglet « Nouveau récapitulatif » : vide pour le moment, à construire pas à pas
-$('ab-recap2').onclick=()=>{panneau('<h3>Nouveau récapitulatif</h3>',true)};
+$('ab-recap2').onclick=()=>{
+  panneau(`<h3>Nouveau récapitulatif</h3>
+    <div class="onglets" id="onglets-nr">
+      <button data-o="app">Données application</button>
+      <button data-o="amicale">Données comptages amicale</button>
+    </div>
+    <div id="nr-contenu"></div>`,true);
+  document.querySelectorAll('#onglets-nr button').forEach(b=>b.onclick=()=>afficherOngletNR(b.dataset.o));
+  afficherOngletNR('app');
+};
+function afficherOngletNR(o){
+  document.querySelectorAll('#onglets-nr button').forEach(b=>b.classList.toggle('on',b.dataset.o===o));
+  $('nr-contenu').innerHTML='<p class="note">'+(o==='app'?'Données application':'Données comptages amicale')+' : à construire.</p>';
+}
 
 // ---- Comptage : une ligne par jour, par tournée et par secteur (ville / campagne)
 function lignesComptage(){
